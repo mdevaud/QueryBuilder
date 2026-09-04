@@ -1,0 +1,219 @@
+{extends file="admin-layout.tpl"}
+
+{block name="no-return-functions"}
+    {if !isset($admin_current_location)}
+        {$admin_current_location = 'QueryBuilder'}
+    {/if}
+{/block}
+
+{block name="page-title"}{intl l='Query Builder — Action' d='querybuilder.bo.default'} {$action.name}{/block}
+
+{block name="main-content"}
+    <div id="wrapper" class="container">
+
+        <ul class="breadcrumb">
+            <li><a href="{url path='/admin/home'}">{intl l="Home"}</a></li>
+            <li><a href="{url path='/admin/query_builder'}">{intl l="Query Builder" d='querybuilder.bo.default'}</a></li>
+            <li><a href="{url path="/admin/query_builder/rule/`$rule.id`"}">{$rule.name}</a></li>
+            <li>{$action.name}</li>
+        </ul>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="general-block-decorator">
+                    <div class="title title-without-tabs">
+                        {intl l="Édition de l'action" d='querybuilder.bo.default'} « {$action.name} »
+                        <small>({intl l="règle" d='querybuilder.bo.default'} « {$rule.name} », {intl l="contexte" d='querybuilder.bo.default'} {$rule.context_label})</small>
+                    </div>
+
+                    {form name="query_builder_action"}
+                        <form method="POST" action="{url path="/admin/query_builder/rule/`$rule.id`/action/`$action.id`/save"}">
+                            {form_hidden_fields}
+                            {form_field field='success_url'}
+                                <input type="hidden" name="{$name}" value="{url path="/admin/query_builder/rule/`$rule.id`/action/`$action.id`"}">
+                            {/form_field}
+                            {form_field field='error_url'}
+                                <input type="hidden" name="{$name}" value="{url path="/admin/query_builder/rule/`$rule.id`/action/`$action.id`"}">
+                            {/form_field}
+
+                            {if $form_error}
+                                <div class="alert alert-danger">{$form_error_message}</div>
+                            {/if}
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{intl l="Nom" d='querybuilder.bo.default'}</label>
+                                        {form_field field='name'}
+                                            <input type="text" name="{$name}" value="{if $value}{$value}{else}{$action.name}{/if}" class="form-control" required>
+                                        {/form_field}
+                                    </div>
+                                    <div class="form-group">
+                                        <label>{intl l="Description" d='querybuilder.bo.default'}</label>
+                                        {form_field field='description'}
+                                            <textarea name="{$name}" class="form-control" rows="2">{if $value}{$value}{else}{$action.description}{/if}</textarea>
+                                        {/form_field}
+                                    </div>
+                                    <div class="form-group">
+                                        {form_field field='activate'}
+                                            <label class="checkbox-inline">
+                                                <input type="checkbox" name="{$name}" value="1" {if $action.activate}checked{/if}>
+                                                {intl l="Action active" d='querybuilder.bo.default'}
+                                            </label>
+                                        {/form_field}
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label>{intl l="Action prédéfinie" d='querybuilder.bo.default'}</label>
+                                        {form_field field='code'}
+                                            <select name="{$name}" class="form-control" id="qb-action-code">
+                                                {foreach $available_actions as $availableAction}
+                                                    <option value="{$availableAction.code}" {if $availableAction.code == $action.code}selected{/if}>
+                                                        {$availableAction.label} ({$availableAction.type})
+                                                    </option>
+                                                {/foreach}
+                                            </select>
+                                        {/form_field}
+                                    </div>
+                                    <div class="row" id="qb-params-display">
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>{intl l="Nombre de produits" d='querybuilder.bo.default'}</label>
+                                                {form_field field='limit'}
+                                                    <input type="number" name="{$name}" value="{if $value}{$value}{else}{$action.param_limit}{/if}" class="form-control" min="1" max="50" placeholder="3">
+                                                {/form_field}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-group">
+                                                <label>{intl l="Persistance des suggestions (jours)" d='querybuilder.bo.default'}</label>
+                                                {form_field field='persist_days'}
+                                                    <input type="number" name="{$name}" value="{if $value}{$value}{else}{$action.param_persist_days}{/if}" class="form-control" min="1" max="365" placeholder="{intl l='vide = pas de persistance' d='querybuilder.bo.default'}">
+                                                {/form_field}
+                                                <p class="help-block">{intl l="Les mêmes produits sont resservis N jours ou jusqu'à leur achat." d='querybuilder.bo.default'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <fieldset class="general-block-decorator" style="padding: 10px 15px;" id="qb-params-discount">
+                                        <legend style="font-size: 14px; margin-bottom: 8px;">{intl l="Remise sur les produits sélectionnés" d='querybuilder.bo.default'}</legend>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label>{intl l="Taux (%)" d='querybuilder.bo.default'}</label>
+                                                    {form_field field='discount_rate'}
+                                                        <input type="number" name="{$name}" value="{if $value}{$value}{else}{$action.param_discount_rate}{/if}" class="form-control" min="0.01" max="99.99" step="0.01">
+                                                    {/form_field}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <div class="form-group">
+                                                    <label>{intl l="Libellé affiché au client" d='querybuilder.bo.default'}</label>
+                                                    {form_field field='discount_label'}
+                                                        <input type="text" name="{$name}" value="{if $value}{$value}{else}{$action.param_discount_label}{/if}" class="form-control" placeholder="Offre découverte -5%">
+                                                    {/form_field}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {form_field field='discount_cumulative'}
+                                            <label class="checkbox-inline">
+                                                <input type="checkbox" name="{$name}" value="1" {if $action.param_discount_cumulative}checked{/if}>
+                                                {intl l="Cumulable avec une promotion déjà appliquée" d='querybuilder.bo.default'}
+                                            </label>
+                                        {/form_field}
+                                        <p class="help-block">{intl l="La remise vaut tant que la règle est active, pour tout client éligible. Non cumulable : elle ne s'applique que si elle est plus avantageuse que la promotion en place." d='querybuilder.bo.default'}</p>
+                                    </fieldset>
+
+                                    <fieldset class="general-block-decorator" style="padding: 10px 15px;" id="qb-params-cart-discount">
+                                        <legend style="font-size: 14px; margin-bottom: 8px;">{intl l="Remise globale panier" d='querybuilder.bo.default'}</legend>
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="form-group">
+                                                    <label>{intl l="Taux (%)" d='querybuilder.bo.default'}</label>
+                                                    {form_field field='cart_discount_rate'}
+                                                        <input type="number" name="{$name}" value="{if $value}{$value}{else}{$action.param_cart_discount_rate}{/if}" class="form-control" min="0.01" max="99.99" step="0.01">
+                                                    {/form_field}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-8">
+                                                <div class="form-group" style="padding-top: 25px;">
+                                                    {form_field field='cart_discount_free_shipping'}
+                                                        <label class="checkbox-inline">
+                                                            <input type="checkbox" name="{$name}" value="1" {if $action.param_cart_discount_free_shipping}checked{/if}>
+                                                            {intl l="Frais de port offerts" d='querybuilder.bo.default'}
+                                                        </label>
+                                                    {/form_field}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <p class="help-block">{intl l="Remise en pourcentage sur le total des produits du panier (port exclu), tant que la règle est active, pour tout client éligible. L'éligibilité est portée par les conditions de la règle." d='querybuilder.bo.default'}</p>
+                                    </fieldset>
+
+                                    <script>
+                                        (function () {
+                                            var codeSelect = document.getElementById('qb-action-code');
+                                            var displayParams = document.getElementById('qb-params-display');
+                                            var discountParams = document.getElementById('qb-params-discount');
+                                            var cartDiscountParams = document.getElementById('qb-params-cart-discount');
+                                            var conditionTreeGroup = document.getElementById('qb-action-tree-group');
+                                            var syncActionParams = function () {
+                                                var isDiscount = codeSelect.value === 'ApplyDiscount';
+                                                var isCartDiscount = codeSelect.value === 'ApplyCartDiscount';
+                                                displayParams.style.display = isCartDiscount ? 'none' : '';
+                                                discountParams.style.display = isDiscount ? '' : 'none';
+                                                cartDiscountParams.style.display = isCartDiscount ? '' : 'none';
+                                                //La remise panier n'a pas de produits cibles : l'arbre de sélection est inutile
+                                                conditionTreeGroup.style.display = isCartDiscount ? 'none' : '';
+                                            };
+                                            codeSelect.addEventListener('change', syncActionParams);
+                                            syncActionParams();
+                                        })();
+                                    </script>
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="qb-action-tree-group">
+                                <label>
+                                    {intl l="Sélection des produits de l'action" d='querybuilder.bo.default'}
+                                    <span class="qb-hooks-count" data-qb-condition-count></span>
+                                </label>
+                                {form_field field='condition_tree'}
+                                    <input type="hidden" name="{$name}" id="qb-action-tree-input" value="{$action.condition_tree|default:''}">
+                                {/form_field}
+
+                                <div class="qb-summary" id="qb-action-tree-summary">
+                                    <span class="qb-summary-label">{intl l="Lecture de la sélection" d='querybuilder.bo.default'}</span>
+                                    <span data-qb-summary-text></span>
+                                </div>
+
+                                <p class="qb-empty-hint" id="qb-action-tree-empty">
+                                    {intl l="Aucun critère : l'action porterait sur tout le catalogue." d='querybuilder.bo.default'}
+                                </p>
+
+                                <div class="qb-tree-panel">
+                                    <div id="qb-action-tree"
+                                         data-query-builder
+                                         data-input="#qb-action-tree-input"
+                                         data-summary="#qb-action-tree-summary"
+                                         data-empty-hint="#qb-action-tree-empty"
+                                         data-counter="[data-qb-condition-count]"
+                                         data-fields="{$fields}"></div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <span class="glyphicon glyphicon-ok"></span> {intl l="Enregistrer l'action" d='querybuilder.bo.default'}
+                            </button>
+                            <a href="{url path="/admin/query_builder/rule/`$rule.id`"}" class="btn btn-default">{intl l="Retour à la règle" d='querybuilder.bo.default'}</a>
+                        </form>
+                    {/form}
+                </div>
+            </div>
+        </div>
+    </div>
+{/block}
+
+{block name="javascript-initialization"}
+    {include file="query-builder/editor-assets.html"}
+{/block}

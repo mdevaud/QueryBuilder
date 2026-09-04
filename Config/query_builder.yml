@@ -1,0 +1,127 @@
+# Base data dictionary of the QueryBuilder module (Thelia core tables only).
+# Any active module can expose its own Config/query_builder.yml to add or
+# override joins/fields, bind hooks to contexts, or disable base fields.
+#
+# joins.<table>.from  : source "table.column" of the join (mandatory)
+# joins.<table>.to    : destination column in <table> (default: id)
+# joins.<table>.type  : INNER (default) | LEFT | RIGHT
+# joins.<table>.on    : extra ON clause, may reference runtime placeholders (:locale, :customer_id...)
+# joins.<table>.multivalued : true when the join can yield several rows per product (1-N).
+#                             MANDATORY on such joins: comparisons on fields reached through them
+#                             then compile to correlated EXISTS/NOT EXISTS subqueries, so that
+#                             notIn/!=/notBetween/doesNotContain exclude the whole product instead
+#                             of matching another joined row. Propagates to downstream joins.
+# joins.<table>: ~    : table resolved elsewhere (ex: by a QueryScope), no dynamic join
+#
+# fields.<code>.label      : label shown in the back-office editor (default: <code>)
+# fields.<code>.field      : "table.column" (exclusive with expression)
+# fields.<code>.expression : self-contained SQL expression, may reference runtime placeholders.
+#                             May contain the :value token: the value entered in the editor is then
+#                             expanded inside the expression (one placeholder per item) instead of
+#                             being compared to it, and "operators" MUST be declared among [in, notIn]
+#                             ("in" keeps the products matching the expression, "notIn" the others)
+# fields.<code>.type       : text (default) | number | date | datetime | boolean
+# fields.<code>.contexts   : restrict to contexts [PRODUCT, CART, ORDER, CUSTOMER, CATEGORY, BRAND, GLOBAL] (default: all)
+# fields.<code>.operators  : restrict allowed operators (react-querybuilder names)
+# fields.<code>.values_query : SQL listing the possible values — "value" column required, "label" and
+#                              "group" optional, :locale allowed. The BO editor then shows a select
+#                              (multiselect for in/notIn) instead of a free input; a "group" column splits
+#                              the options into <optgroup> sections, in SQL row order. Executed on the
+#                              editor screens only; falls back to the free input beyond 300 rows or on
+#                              SQL error. Not allowed on boolean fields.
+#
+# contexts.<CONTEXT>: hooks usable by rules of this context. Each entry is either a plain
+#                     code string, or a {code, label} mapping — the functional label is what
+#                     the back-office shows (default: the code). Merging overrides: union by
+#                     code, the last active module wins on the label.
+# disabled: list of field codes to remove
+
+contexts:
+    GLOBAL: []
+    CATEGORY: []
+    BRAND: []
+    PRODUCT:
+        - code: product.top
+          label: "Fiche produit — haut de page"
+        - code: product.bottom
+          label: "Fiche produit — bas de page"
+    CART: []
+    ORDER: []
+    CUSTOMER: []
+
+joins:
+    product_i18n:
+        from: product.id
+        to: id
+        on: "product_i18n.locale = :locale"
+    product_category:
+        from: product.id
+        to: product_id
+        multivalued: true
+    category:
+        from: product_category.category_id
+    category_i18n:
+        from: category.id
+        to: id
+        on: "category_i18n.locale = :locale"
+    product_sale_elements:
+        from: product.id
+        to: product_id
+        multivalued: true
+    product_price:
+        from: product_sale_elements.id
+        to: product_sale_elements_id
+        multivalued: true
+    brand:
+        from: product.brand_id
+    brand_i18n:
+        from: brand.id
+        to: id
+        on: "brand_i18n.locale = :locale"
+
+fields:
+    product_ref:
+        label: "Référence du produit"
+        field: product.ref
+    product_title:
+        label: "Titre du produit"
+        field: product_i18n.title
+    product_visible:
+        label: "Produit visible"
+        field: product.visible
+        type: boolean
+    product_category_id:
+        label: "Catégorie (ID)"
+        field: product_category.category_id
+        type: number
+    product_category_title:
+        label: "Titre de la catégorie du produit"
+        field: category_i18n.title
+        values_query: "SELECT DISTINCT title AS value FROM category_i18n WHERE locale = :locale AND title IS NOT NULL AND title <> '' ORDER BY title"
+    product_brand_title:
+        label: "Marque du produit"
+        field: brand_i18n.title
+        values_query: "SELECT DISTINCT title AS value FROM brand_i18n WHERE locale = :locale AND title IS NOT NULL AND title <> '' ORDER BY title"
+    product_price:
+        label: "Prix du produit"
+        field: product_price.price
+        type: number
+    product_created_at:
+        label: "Date de création du produit"
+        field: product.created_at
+        type: datetime
+    product_in_cart:
+        label: "Produit présent dans le panier du client"
+        expression: "product.id IN (:cart_product_ids)"
+        type: boolean
+    # Outside a product page :product_id is bound to 0 (no current product):
+    # "= vrai" never matches, "= faux" lets everything through
+    product_is_current:
+        label: "Est le produit de la fiche courante"
+        expression: "product.id = :product_id"
+        type: boolean
+    customer_purchased_last_3_months:
+        label: "Produit acheté par le client au cours des 3 derniers mois"
+        expression: "EXISTS (SELECT 1 FROM `order` qb_ord JOIN `order_product` qb_ordp ON qb_ordp.order_id = qb_ord.id WHERE qb_ord.customer_id = :customer_id AND qb_ordp.product_ref = product.ref AND qb_ord.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH))"
+        type: boolean
+disabled: []

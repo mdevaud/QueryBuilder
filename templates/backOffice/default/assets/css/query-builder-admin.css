@@ -1,0 +1,485 @@
+/* Back-office skin of the react-querybuilder editor and of the rule form.
+   Loaded after the vendored query-builder.css, whose CSS variables it overrides. */
+
+:root {
+    /* Orange of the Thelia back-office (btn-primary #f39922) */
+    --qb-accent: #f39922;
+    --qb-accent-dark: #b46b0a;
+    --qb-accent-soft: #fdf3e6;
+    --qb-border: #dfe3e8;
+    --qb-text-muted: #8a9199;
+    --qb-group-bg: #f7f8fa;
+
+    /* Vendor variables: lighter frame, tighter spacing than the library default */
+    --rqb-spacing: 0.45rem;
+    --rqb-base-color: #f39922;
+    --rqb-background-color: transparent;
+    --rqb-border-color: #dfe3e8;
+    --rqb-border-radius: 3px;
+    --rqb-branch-indent: 0.6rem;
+}
+
+/* ---------------------------------------------------------------- Sections */
+
+.qb-section {
+    border: 1px solid var(--qb-border);
+    border-radius: 3px;
+    margin-bottom: 20px;
+    background: #fff;
+}
+
+.qb-section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 10px 15px;
+    background: var(--qb-group-bg);
+    border-bottom: 1px solid var(--qb-border);
+}
+
+.qb-section-step {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--qb-accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.qb-section-title {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin: 0;
+}
+
+.qb-section-hint {
+    font-size: 12px;
+    color: var(--qb-text-muted);
+    margin: 0;
+}
+
+.qb-section-body {
+    padding: 15px;
+}
+
+.qb-section-body > .form-group:last-child,
+.qb-section-body > .row:last-child .form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------------- Hooks */
+
+.qb-hooks-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.qb-hooks-count {
+    font-size: 12px;
+    color: var(--qb-text-muted);
+    margin-left: auto;
+}
+
+.qb-hooks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 6px;
+}
+
+.qb-hook-choice {
+    margin: 0;
+}
+
+.qb-hook-choice > label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--qb-border);
+    border-radius: 3px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.qb-hook-choice > label:hover {
+    border-color: var(--qb-accent);
+    background: var(--qb-accent-soft);
+}
+
+/* Bootstrap absolutely positions checkboxes inside .checkbox: keep it in the flow */
+.qb-hook-choice > label > input[type="checkbox"] {
+    position: static;
+    margin: 3px 0 0;
+    flex: 0 0 auto;
+}
+
+/* min-width 0: without it the flex item refuses to shrink and the long
+   unbreakable hook code overflows the card */
+.qb-hook-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.qb-hook-text > small {
+    display: block;
+}
+
+.qb-hook-choice code {
+    background: none;
+    color: #444;
+    padding: 0;
+    font-size: 12px;
+    word-break: break-all;
+}
+
+.qb-hook-choice.qb-hook-checked > label {
+    border-color: var(--qb-accent);
+    background: var(--qb-accent-soft);
+}
+
+/* -------------------------------------------------------------- Conditions */
+
+.qb-tree-panel {
+    border: 1px dashed var(--qb-border);
+    border-radius: 3px;
+    padding: 12px;
+    background: #fcfdfe;
+}
+
+.qb-summary {
+    display: none;
+    margin-bottom: 12px;
+    padding: 10px 14px 12px;
+    border: 1px solid #f0e0c6;
+    border-left: 3px solid var(--qb-accent);
+    border-radius: 3px;
+    background: var(--qb-accent-soft);
+    font-size: 13px;
+    line-height: 1.5;
+    color: #2c3e50;
+}
+
+.qb-summary.qb-summary-visible {
+    display: block;
+}
+
+.qb-summary-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--qb-accent-dark);
+    margin-bottom: 2px;
+}
+
+/* Structured recap: one line per condition, nesting shown by indented rails */
+
+.qb-summary-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.qb-summary-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.qb-summary-heading-text {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: #7a8794;
+}
+
+.qb-summary-combinator {
+    display: inline-block;
+    min-width: 26px;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-align: center;
+    color: #fff;
+    background: #7a8794;
+}
+
+.qb-summary-combinator-and {
+    background: var(--qb-accent-dark);
+}
+
+.qb-summary-combinator-or {
+    background: #4a90a4;
+}
+
+.qb-summary-rule {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 0 4px 14px;
+    position: relative;
+}
+
+.qb-summary-rule::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 12px;
+    width: 6px;
+    height: 1px;
+    background: #d8c9ae;
+}
+
+.qb-summary-field {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.qb-summary-field-unknown {
+    color: #a94442;
+    text-decoration: underline dotted;
+}
+
+.qb-summary-operator {
+    font-style: italic;
+    color: #8a7a5f;
+}
+
+.qb-summary-join {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: #a3907a;
+}
+
+.qb-summary-value {
+    padding: 1px 7px;
+    border: 1px solid #e3d3b4;
+    border-radius: 10px;
+    background: #fff;
+    font-family: Menlo, Consolas, monospace;
+    font-size: 12px;
+    color: #b46b0a;
+}
+
+.qb-summary-missing {
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: #f2dede;
+    font-size: 12px;
+    font-style: italic;
+    color: #a94442;
+}
+
+.qb-summary-nested {
+    margin: 6px 0 6px 14px;
+}
+
+/* Nested groups get their own rail so the depth is obvious */
+.qb-summary-nested > .qb-summary-group {
+    padding: 6px 0 2px 12px;
+    border-left: 2px solid #e3d3b4;
+}
+
+.qb-summary-depth-2 {
+    border-left-color: #cfd8dd;
+}
+
+.qb-summary-depth-3 {
+    border-left-color: #d9c3d6;
+}
+
+.qb-empty-hint {
+    display: none;
+    font-size: 13px;
+    color: var(--qb-text-muted);
+    font-style: italic;
+    margin-bottom: 10px;
+}
+
+.qb-empty-hint.qb-empty-hint-visible {
+    display: block;
+}
+
+/* --------------------------------------------------- react-querybuilder skin */
+
+.qb-tree .ruleGroup {
+    background: var(--qb-group-bg);
+    border: 1px solid var(--qb-border);
+    padding: 10px;
+}
+
+/* Nested groups alternate shades so the nesting depth is readable at a glance */
+.qb-tree .ruleGroup .ruleGroup {
+    background: #fff;
+}
+
+.qb-tree .ruleGroup .ruleGroup .ruleGroup {
+    background: var(--qb-group-bg);
+}
+
+.qb-tree .ruleGroup-header {
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--qb-border);
+    flex-wrap: wrap;
+}
+
+.qb-tree .rule {
+    padding: 4px 0;
+    flex-wrap: wrap;
+}
+
+.qb-tree select.form-control,
+.qb-tree input.form-control {
+    display: inline-block;
+    width: auto;
+    max-width: 100%;
+    height: 30px;
+    padding: 4px 8px;
+    font-size: 13px;
+    vertical-align: middle;
+}
+
+/* Field labels can be long: fix the widths so the columns stay aligned between rules */
+.qb-tree select.rule-fields {
+    width: 320px;
+    font-weight: 600;
+}
+
+.qb-tree select.rule-operators {
+    width: 150px;
+    color: #5b6b7c;
+}
+
+.qb-tree input.rule-value,
+.qb-tree select.rule-value {
+    width: 220px;
+}
+
+/* "between" renders two inputs side by side in a flex wrapper */
+.qb-tree .rule-value:has(.rule-value-list-item) {
+    width: auto;
+}
+
+.qb-tree .rule-value-list-item {
+    width: 105px;
+}
+
+.qb-tree select[multiple].form-control {
+    height: auto;
+    min-height: 60px;
+}
+
+/* Booleans use a checkbox editor: it must not inherit the form-control box */
+.qb-tree input[type="checkbox"].form-control {
+    width: 16px;
+    height: 16px;
+    padding: 0;
+    box-shadow: none;
+    border: 0;
+    background: none;
+}
+
+.qb-tree select.ruleGroup-combinators {
+    width: auto;
+    min-width: 74px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--qb-accent-dark);
+    background: #fff;
+}
+
+/* Inline combinator repeated between rules: read-only-looking connector */
+.qb-tree .betweenRules select {
+    font-size: 11px;
+    height: 24px;
+    padding: 1px 4px;
+    color: var(--qb-text-muted);
+    border-color: transparent;
+    background: none;
+    text-transform: uppercase;
+}
+
+.qb-tree .betweenRules select:hover,
+.qb-tree .betweenRules select:focus {
+    border-color: var(--qb-border);
+    background: #fff;
+}
+
+.qb-tree .qb-btn-remove {
+    color: #b94a48;
+    padding: 2px 6px;
+    line-height: 1;
+    text-decoration: none;
+    opacity: 0.55;
+}
+
+.qb-tree .qb-btn-remove:hover,
+.qb-tree .qb-btn-remove:focus {
+    opacity: 1;
+    color: #a03432;
+}
+
+.qb-tree .ruleGroup-addRule,
+.qb-tree .ruleGroup-addGroup {
+    font-size: 12px;
+}
+
+.qb-tree .ruleGroup-notToggle {
+    font-size: 12px;
+    color: #b94a48;
+    font-weight: 600;
+    margin: 0;
+}
+
+.qb-tree .ruleGroup-notToggle input {
+    margin-right: 4px;
+}
+
+.qb-tree .rule-value-list-item + .rule-value-list-item {
+    margin-left: 4px;
+}
+
+/* ---------------------------------------------------------- Sticky save bar */
+
+.qb-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    background: #fff;
+    border: 1px solid var(--qb-border);
+    border-radius: 3px;
+    margin-bottom: 20px;
+}
+
+.qb-form-actions .qb-form-actions-hint {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--qb-text-muted);
+}
+
+@media (min-width: 768px) {
+    .qb-form-actions-sticky {
+        position: sticky;
+        bottom: 0;
+        z-index: 20;
+        box-shadow: 0 -2px 6px rgba(0, 0, 0, 0.06);
+    }
+}

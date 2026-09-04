@@ -1,0 +1,119 @@
+{extends file="admin-layout.tpl"}
+
+{block name="no-return-functions"}
+    {if !isset($admin_current_location)}
+        {$admin_current_location = 'QueryBuilder'}
+    {/if}
+{/block}
+
+{block name="page-title"}{intl l='Query Builder — Règles' d='querybuilder.bo.default'}{/block}
+
+{block name="main-content"}
+    <div id="wrapper" class="container">
+
+        <ul class="breadcrumb">
+            <li><a href="{url path='/admin/home'}">{intl l="Home"}</a></li>
+            <li>{intl l="Query Builder" d='querybuilder.bo.default'}</li>
+        </ul>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="general-block-decorator">
+                    <div class="title title-without-tabs">
+                        {intl l="Règles" d='querybuilder.bo.default'}
+                    </div>
+
+                    {form name="query_builder_rule"}
+                        <form method="POST" action="{url path='/admin/query_builder/rule/create'}" class="form-inline" style="margin-bottom: 15px;">
+                            {form_hidden_fields}
+                            {form_field field='error_url'}
+                                <input type="hidden" name="{$name}" value="{url path='/admin/query_builder'}">
+                            {/form_field}
+
+                            {form_field field='name'}
+                                <input type="text" name="{$name}" value="{$value}" class="form-control" placeholder="{intl l='Nom de la nouvelle règle' d='querybuilder.bo.default'}" required>
+                            {/form_field}
+
+                            {form_field field='context'}
+                                <select name="{$name}" class="form-control">
+                                    {foreach $contexts as $context}
+                                        <option value="{$context.value}">{$context.label}</option>
+                                    {/foreach}
+                                </select>
+                            {/form_field}
+
+                            <button type="submit" class="btn btn-primary">
+                                <span class="glyphicon glyphicon-plus"></span> {intl l="Ajouter une règle" d='querybuilder.bo.default'}
+                            </button>
+                        </form>
+
+                        {if $form_error}
+                            <div class="alert alert-danger">{$form_error_message}</div>
+                        {/if}
+                    {/form}
+
+                    {if $rules|count == 0}
+                        <div class="alert alert-info">{intl l="Aucune règle pour le moment." d='querybuilder.bo.default'}</div>
+                    {else}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-condensed">
+                                <thead>
+                                <tr>
+                                    <th class="object-title">{intl l='Nom' d='querybuilder.bo.default'}</th>
+                                    <th class="object-title">{intl l='Contexte' d='querybuilder.bo.default'}</th>
+                                    <th class="object-title">{intl l='Hooks' d='querybuilder.bo.default'}</th>
+                                    <th class="object-title">{intl l='Actions' d='querybuilder.bo.default'}</th>
+                                    <th class="object-title">{intl l='Statut' d='querybuilder.bo.default'}</th>
+                                    <th class="actions">&nbsp;</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {foreach $rules as $rule}
+                                    <tr>
+                                        <td>
+                                            <a href="{url path="/admin/query_builder/rule/`$rule.id`"}"><strong>{$rule.name}</strong></a>
+                                            {if $rule.description}<br><small class="text-muted">{$rule.description|truncate:80}</small>{/if}
+                                        </td>
+                                        <td><span class="label label-info" title="{$rule.context}">{$rule.context_label}</span></td>
+                                        <td>
+                                            {foreach $rule.hooks as $hook}
+                                                <span class="label label-default" title="{$hook.code}">{$hook.label}</span>{if !$hook@last} {/if}
+                                            {foreachelse}
+                                                <span class="text-muted">—</span>
+                                            {/foreach}
+                                        </td>
+                                        <td>{$rule.action_count}</td>
+                                        <td>
+                                            <form method="POST" action="{token_url path="/admin/query_builder/rule/`$rule.id`/toggle"}" style="display:inline;">
+                                                {if $rule.activate}
+                                                    <button type="submit" class="btn btn-xs btn-success" title="{intl l='Cliquer pour désactiver' d='querybuilder.bo.default'}">
+                                                        {intl l="Active" d='querybuilder.bo.default'}
+                                                    </button>
+                                                {else}
+                                                    <button type="submit" class="btn btn-xs btn-default" title="{intl l='Cliquer pour activer' d='querybuilder.bo.default'}">
+                                                        {intl l="Inactive" d='querybuilder.bo.default'}
+                                                    </button>
+                                                {/if}
+                                            </form>
+                                        </td>
+                                        <td class="actions">
+                                            <a href="{url path="/admin/query_builder/rule/`$rule.id`"}" class="btn btn-xs btn-info" title="{intl l='Modifier' d='querybuilder.bo.default'}">
+                                                <span class="glyphicon glyphicon-edit"></span>
+                                            </a>
+                                            <form method="POST" action="{token_url path="/admin/query_builder/rule/`$rule.id`/delete"}" style="display:inline;" onsubmit="return confirm('{intl l='Supprimer cette règle et ses actions ?' d='querybuilder.bo.default' js=1}');">
+                                                <button type="submit" class="btn btn-xs btn-danger" title="{intl l='Supprimer' d='querybuilder.bo.default'}">
+                                                    <span class="glyphicon glyphicon-trash"></span>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {/foreach}
+                                </tbody>
+                            </table>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    </div>
+{/block}

@@ -1,0 +1,300 @@
+{extends file="admin-layout.tpl"}
+
+{block name="no-return-functions"}
+    {if !isset($admin_current_location)}
+        {$admin_current_location = 'QueryBuilder'}
+    {/if}
+{/block}
+
+{block name="page-title"}{intl l='Query Builder — Règle' d='querybuilder.bo.default'} {$rule.name}{/block}
+
+{block name="main-content"}
+    <div id="wrapper" class="container">
+
+        <ul class="breadcrumb">
+            <li><a href="{url path='/admin/home'}">{intl l="Home"}</a></li>
+            <li><a href="{url path='/admin/query_builder'}">{intl l="Query Builder" d='querybuilder.bo.default'}</a></li>
+            <li>{$rule.name}</li>
+        </ul>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="general-block-decorator">
+                    <div class="title title-without-tabs">
+                        {intl l="Règle" d='querybuilder.bo.default'} « {$rule.name} »
+                        {if $rule.activate}
+                            <span class="label label-success">{intl l="Active" d='querybuilder.bo.default'}</span>
+                        {else}
+                            <span class="label label-default">{intl l="Inactive" d='querybuilder.bo.default'}</span>
+                        {/if}
+                        <span class="label label-info">{$rule.context_label}</span>
+                    </div>
+                    <p class="help-block">
+                        {intl l="Une règle s'exécute quand un de ses hooks est appelé, si ses conditions de déclenchement sont vraies. Elle produit ensuite ses actions." d='querybuilder.bo.default'}
+                    </p>
+
+                    {form name="query_builder_rule"}
+                        <form method="POST" action="{url path="/admin/query_builder/rule/`$rule.id`/save"}">
+                            {form_hidden_fields}
+                            {form_field field='success_url'}
+                                <input type="hidden" name="{$name}" value="{url path="/admin/query_builder/rule/`$rule.id`"}">
+                            {/form_field}
+                            {form_field field='error_url'}
+                                <input type="hidden" name="{$name}" value="{url path="/admin/query_builder/rule/`$rule.id`"}">
+                            {/form_field}
+
+                            {if $form_error}
+                                <div class="alert alert-danger">{$form_error_message}</div>
+                            {/if}
+
+                            {* ---------------------------------------------------- 1. Identité *}
+                            <div class="qb-section">
+                                <div class="qb-section-head">
+                                    <span class="qb-section-step">1</span>
+                                    <div>
+                                        <h3 class="qb-section-title">{intl l="Identification" d='querybuilder.bo.default'}</h3>
+                                        <p class="qb-section-hint">{intl l="À usage interne : ces informations n'apparaissent jamais côté client." d='querybuilder.bo.default'}</p>
+                                    </div>
+                                </div>
+                                <div class="qb-section-body">
+                                    <div class="row">
+                                        <div class="col-md-5">
+                                            <div class="form-group">
+                                                <label>{intl l="Nom de la règle" d='querybuilder.bo.default'}</label>
+                                                {form_field field='name'}
+                                                    <input type="text" name="{$name}" value="{if $value}{$value}{else}{$rule.name}{/if}" class="form-control" required>
+                                                {/form_field}
+                                            </div>
+                                            <div class="form-group">
+                                                {form_field field='activate'}
+                                                    <label class="checkbox-inline">
+                                                        <input type="checkbox" name="{$name}" value="1" {if $rule.activate}checked{/if}>
+                                                        <strong>{intl l="Règle active" d='querybuilder.bo.default'}</strong>
+                                                    </label>
+                                                {/form_field}
+                                                <p class="help-block">{intl l="Une règle inactive n'est jamais évaluée." d='querybuilder.bo.default'}</p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-7">
+                                            <div class="form-group">
+                                                <label>{intl l="Description" d='querybuilder.bo.default'}</label>
+                                                {form_field field='description'}
+                                                    <textarea name="{$name}" class="form-control" rows="4" placeholder="{intl l='À quoi sert cette règle, pour qui, jusqu’à quand…' d='querybuilder.bo.default'}">{if $value}{$value}{else}{$rule.description}{/if}</textarea>
+                                                {/form_field}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {* ------------------------------------------------ 2. Déclenchement *}
+                            <div class="qb-section">
+                                <div class="qb-section-head">
+                                    <span class="qb-section-step">2</span>
+                                    <div>
+                                        <h3 class="qb-section-title">{intl l="Quand la règle est-elle évaluée ?" d='querybuilder.bo.default'}</h3>
+                                        <p class="qb-section-hint">{intl l="Le contexte détermine l'objet évalué, les champs disponibles et les hooks possibles." d='querybuilder.bo.default'}</p>
+                                    </div>
+                                </div>
+                                <div class="qb-section-body">
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="form-group">
+                                                <label>{intl l="Contexte" d='querybuilder.bo.default'}</label>
+                                                {form_field field='context'}
+                                                    <select name="{$name}" id="qb-rule-context" class="form-control">
+                                                        {foreach $contexts as $context}
+                                                            <option value="{$context.value}"
+                                                                    data-description="{$context.description}"
+                                                                    {if $context.value == $rule.context}selected{/if}>{$context.label}</option>
+                                                        {/foreach}
+                                                    </select>
+                                                {/form_field}
+                                                <p class="help-block" id="qb-rule-context-help"></p>
+                                                <p class="help-block">
+                                                    <span class="glyphicon glyphicon-warning-sign"></span>
+                                                    {intl l="Changer de contexte réinitialise les conditions saisies." d='querybuilder.bo.default'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="form-group">
+                                                <label>{intl l="Hooks déclencheurs" d='querybuilder.bo.default'}</label>
+
+                                                <div class="qb-hooks-toolbar">
+                                                    <button type="button" class="btn btn-xs btn-default" data-qb-hook-all>
+                                                        {intl l="Tout cocher" d='querybuilder.bo.default'}
+                                                    </button>
+                                                    <button type="button" class="btn btn-xs btn-default" data-qb-hook-none>
+                                                        {intl l="Tout décocher" d='querybuilder.bo.default'}
+                                                    </button>
+                                                    <span class="qb-hooks-count" data-qb-hook-count></span>
+                                                </div>
+
+                                                <div id="qb-rule-hooks" class="qb-hooks-grid">
+                                                    {foreach $hook_choices as $hookChoice}
+                                                        <div class="checkbox qb-hook-choice" data-context="{$hookChoice.context}">
+                                                            <label>
+                                                                <input type="checkbox" name="hooks[]" value="{$hookChoice.code}" {if $hookChoice.checked}checked{/if}>
+                                                                <span class="qb-hook-text">
+                                                                    {$hookChoice.label}
+                                                                    {if $hookChoice.label != $hookChoice.code}<small class="text-muted"><code>{$hookChoice.code}</code></small>{/if}
+                                                                </span>
+                                                            </label>
+                                                        </div>
+                                                    {/foreach}
+                                                </div>
+
+                                                <p class="text-muted" data-qb-hook-empty style="display:none;">
+                                                    {intl l="Aucun hook déclaré pour ce contexte dans le dictionnaire." d='querybuilder.bo.default'}
+                                                </p>
+
+                                                <p class="help-block">{intl l="Aucun hook coché = règle exécutable uniquement via l'API." d='querybuilder.bo.default'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {* --------------------------------------------------- 3. Conditions *}
+                            <div class="qb-section">
+                                <div class="qb-section-head">
+                                    <span class="qb-section-step">3</span>
+                                    <div>
+                                        <h3 class="qb-section-title">{intl l="Conditions de déclenchement" d='querybuilder.bo.default'}</h3>
+                                        <p class="qb-section-hint">{intl l="Optionnel. Sans condition, la règle se déclenche à chaque appel de ses hooks." d='querybuilder.bo.default'}</p>
+                                    </div>
+                                    <span class="qb-hooks-count" data-qb-condition-count></span>
+                                </div>
+                                <div class="qb-section-body">
+                                    {form_field field='condition_tree'}
+                                        <input type="hidden" name="{$name}" id="qb-rule-tree-input" value="{$rule.condition_tree|default:''}">
+                                    {/form_field}
+
+                                    <div class="qb-summary" id="qb-rule-tree-summary">
+                                        <span class="qb-summary-label">{intl l="Lecture de la condition" d='querybuilder.bo.default'}</span>
+                                        <span data-qb-summary-text></span>
+                                    </div>
+
+                                    <p class="qb-empty-hint" id="qb-rule-tree-empty">
+                                        {intl l="Aucune condition : ajoutez-en une pour restreindre le déclenchement, sinon la règle vaut toujours." d='querybuilder.bo.default'}
+                                    </p>
+
+                                    <div class="qb-tree-panel">
+                                        <div id="qb-rule-tree"
+                                             data-query-builder
+                                             data-input="#qb-rule-tree-input"
+                                             data-context-select="#qb-rule-context"
+                                             data-context-help="#qb-rule-context-help"
+                                             data-summary="#qb-rule-tree-summary"
+                                             data-empty-hint="#qb-rule-tree-empty"
+                                             data-counter="[data-qb-condition-count]"
+                                             data-fields-by-context="{$fields_by_context}"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="qb-form-actions qb-form-actions-sticky">
+                                <button type="submit" class="btn btn-primary">
+                                    <span class="glyphicon glyphicon-ok"></span> {intl l="Enregistrer la règle" d='querybuilder.bo.default'}
+                                </button>
+                                <a href="{url path='/admin/query_builder'}" class="btn btn-default">
+                                    {intl l="Retour à la liste" d='querybuilder.bo.default'}
+                                </a>
+                                <span class="qb-form-actions-hint">
+                                    {intl l="Les actions ci-dessous sont enregistrées séparément." d='querybuilder.bo.default'}
+                                </span>
+                            </div>
+                        </form>
+                    {/form}
+                </div>
+
+                {* ------------------------------------------------------------ 4. Actions *}
+                <div class="general-block-decorator">
+                    <div class="title title-without-tabs">
+                        {intl l="Actions de la règle" d='querybuilder.bo.default'}
+                        <span class="label label-default">{$actions|count}</span>
+                    </div>
+                    <p class="help-block">
+                        {intl l="Ce que la règle produit quand elle se déclenche : chaque action a sa propre sélection de produits et ses paramètres." d='querybuilder.bo.default'}
+                    </p>
+
+                    {form name="query_builder_action"}
+                        <form method="POST" action="{url path="/admin/query_builder/rule/`$rule.id`/action/create"}" class="form-inline" style="margin-bottom: 15px;">
+                            {form_hidden_fields}
+                            {form_field field='error_url'}
+                                <input type="hidden" name="{$name}" value="{url path="/admin/query_builder/rule/`$rule.id`"}">
+                            {/form_field}
+
+                            {form_field field='name'}
+                                <input type="text" name="{$name}" value="{$value}" class="form-control" placeholder="{intl l='Nom de la nouvelle action' d='querybuilder.bo.default'}" required>
+                            {/form_field}
+
+                            {form_field field='code'}
+                                <select name="{$name}" class="form-control">
+                                    {foreach $available_actions as $availableAction}
+                                        <option value="{$availableAction.code}">{$availableAction.label} ({$availableAction.type})</option>
+                                    {/foreach}
+                                </select>
+                            {/form_field}
+
+                            <button type="submit" class="btn btn-primary">
+                                <span class="glyphicon glyphicon-plus"></span> {intl l="Ajouter une action" d='querybuilder.bo.default'}
+                            </button>
+                        </form>
+                    {/form}
+
+                    {if $actions|count == 0}
+                        <div class="alert alert-info">{intl l="Aucune action : la règle ne produit rien pour le moment." d='querybuilder.bo.default'}</div>
+                    {else}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-condensed">
+                                <thead>
+                                <tr>
+                                    <th class="object-title">{intl l='Nom' d='querybuilder.bo.default'}</th>
+                                    <th class="object-title">{intl l='Action' d='querybuilder.bo.default'}</th>
+                                    <th class="object-title">{intl l='Type' d='querybuilder.bo.default'}</th>
+                                    <th class="object-title">{intl l='Statut' d='querybuilder.bo.default'}</th>
+                                    <th class="actions">&nbsp;</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {foreach $actions as $action}
+                                    <tr>
+                                        <td><a href="{url path="/admin/query_builder/rule/`$rule.id`/action/`$action.id`"}"><strong>{$action.name}</strong></a></td>
+                                        <td><code>{$action.code}</code></td>
+                                        <td><span class="label label-default">{$action.type}</span></td>
+                                        <td>
+                                            <form method="POST" action="{token_url path="/admin/query_builder/rule/`$rule.id`/action/`$action.id`/toggle"}" style="display:inline;">
+                                                {if $action.activate}
+                                                    <button type="submit" class="btn btn-xs btn-success" title="{intl l='Cliquer pour désactiver' d='querybuilder.bo.default'}">{intl l="Active" d='querybuilder.bo.default'}</button>
+                                                {else}
+                                                    <button type="submit" class="btn btn-xs btn-default" title="{intl l='Cliquer pour activer' d='querybuilder.bo.default'}">{intl l="Inactive" d='querybuilder.bo.default'}</button>
+                                                {/if}
+                                            </form>
+                                        </td>
+                                        <td class="actions">
+                                            <a href="{url path="/admin/query_builder/rule/`$rule.id`/action/`$action.id`"}" class="btn btn-xs btn-info" title="{intl l='Modifier' d='querybuilder.bo.default'}">
+                                                <span class="glyphicon glyphicon-edit"></span>
+                                            </a>
+                                            <form method="POST" action="{token_url path="/admin/query_builder/rule/`$rule.id`/action/`$action.id`/delete"}" style="display:inline;" onsubmit="return confirm('{intl l='Supprimer cette action ?' d='querybuilder.bo.default' js=1}');">
+                                                <button type="submit" class="btn btn-xs btn-danger" title="{intl l='Supprimer' d='querybuilder.bo.default'}">
+                                                    <span class="glyphicon glyphicon-trash"></span>
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                {/foreach}
+                                </tbody>
+                            </table>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        </div>
+    </div>
+{/block}
+
+{block name="javascript-initialization"}
+    {include file="query-builder/editor-assets.html"}
+{/block}

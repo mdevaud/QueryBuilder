@@ -1,0 +1,20 @@
+{* Generic rendering of a DisplayProductsList action. Override this template
+   in the active front theme (templates/frontOffice/<theme>/QueryBuilder/query-builder/product-list.html)
+   to match the project design. *}
+
+<section class="query-builder-product-list" data-rule="{$qb_rule_name}" data-action="{$qb_action_name}">
+    <h2 class="query-builder-product-list-title">{$qb_action_name}</h2>
+
+    <ul class="query-builder-product-list-items">
+        {loop type="product" name="query_builder_products" id=$qb_product_ids visible="yes" return_url="1"}
+            <li class="query-builder-product-list-item">
+                <a href="{$URL}">
+                    {loop type="image" name="query_builder_product_image" source="product" source_id=$ID limit="1" width="220" height="220" resize_mode="borders"}
+                        <img src="{$IMAGE_URL}" alt="{$TITLE|escape}" loading="lazy">
+                    {/loop}
+                    <span class="query-builder-product-list-item-title">{$TITLE}</span>
+                </a>
+            </li>
+        {/loop}
+    </ul>
+</section>
