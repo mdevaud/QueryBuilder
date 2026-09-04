@@ -1,0 +1,17 @@
+{
+  "name": "thelia/query-builder-module",
+  "description": "QueryBuilder module for Thelia — Generic rule engine: build condition trees in the back-office, compile them to SQL and trigger actions (product lists, processing, filters) on front-office hooks.",
+  "license": "GPL-3.0-or-later",
+  "type": "thelia-module",
+  "require": {
+    "thelia/installer": "~1.1"
+  },
+  "extra": {
+    "installer-name": "QueryBuilder"
+  },
+  "config": {
+    "allow-plugins": {
+      "thelia/installer": true
+    }
+  }
+}
