@@ -9,19 +9,17 @@ use QueryBuilder\Service\RuntimeContextFactory;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\Event\Hook\HookRenderEvent;
 use Thelia\Core\Hook\BaseHook;
-use Thelia\Core\Template\Assets\AssetResolverInterface;
-use TheliaSmarty\Template\SmartyParser;
+use Thelia\Core\Template\Parser\ParserResolver;
 
 class FrontHook extends BaseHook
 {
     public function __construct(
-        SmartyParser $smartyParser,
-        AssetResolverInterface $assetResolver,
-        EventDispatcherInterface $eventDispatcher,
         private readonly HookResultPresenter $hookResultPresenter,
         private readonly RuntimeContextFactory $runtimeContextFactory,
+        ?EventDispatcherInterface $dispatcher = null,
+        ?ParserResolver $parserResolver = null,
     ) {
-        parent::__construct($smartyParser, $assetResolver, $eventDispatcher);
+        parent::__construct($dispatcher, $parserResolver);
     }
 
     public static function getSubscribedHooks(): array

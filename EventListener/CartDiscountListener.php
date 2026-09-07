@@ -117,8 +117,9 @@ final class CartDiscountListener implements EventSubscriberInterface
 
             $totalDiscount = $baseDiscount + $ruleDiscountAmount;
 
-            $cart->setDiscount($totalDiscount)->save();
-            $session->getOrder()?->setDiscount($totalDiscount);
+            //Propel decimal columns are typed string under Thelia 3
+            $cart->setDiscount((string) $totalDiscount)->save();
+            $session->getOrder()?->setDiscount((string) $totalDiscount);
 
             $this->appliedAmountByCartId[$cartId] = $ruleDiscountAmount;
             $this->writtenTotalByCartId[$cartId] = $totalDiscount;
@@ -150,7 +151,7 @@ final class CartDiscountListener implements EventSubscriberInterface
             }
 
             $order = $event->getOrder();
-            $order->setPostage(0);
+            $order->setPostage('0');
             $event->setOrder($order);
             $event->stopPropagation();
         } catch (\Throwable $throwable) {

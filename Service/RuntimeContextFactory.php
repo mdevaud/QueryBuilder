@@ -6,7 +6,7 @@ namespace QueryBuilder\Service;
 
 use QueryBuilder\Query\RuntimeContext;
 use QueryBuilder\Query\RuntimeParameterProviderInterface;
-use Symfony\Component\DependencyInjection\Attribute\TaggedIterator;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Thelia\Core\HttpFoundation\Session\Session;
@@ -22,7 +22,7 @@ final readonly class RuntimeContextFactory
     public function __construct(
         private RequestStack $requestStack,
         private EventDispatcherInterface $eventDispatcher,
-        #[TaggedIterator(RuntimeParameterProviderInterface::TAG)]
+        #[AutowireIterator(RuntimeParameterProviderInterface::TAG)]
         private iterable $parameterProviders = [],
     ) {
     }

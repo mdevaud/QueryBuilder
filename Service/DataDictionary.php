@@ -127,7 +127,8 @@ final class DataDictionary
             ->find();
 
         foreach ($modules as $module) {
-            $file = THELIA_MODULE_DIR . $module->getCode() . DS . 'Config' . DS . self::DICTIONARY_FILENAME;
+            //A Thelia 3 module lives either in local/modules or in vendor/thelia/modules (Composer)
+            $file = $module->getAbsoluteBaseDir() . DS . 'Config' . DS . self::DICTIONARY_FILENAME;
 
             if (is_file($file)) {
                 $files[] = $file;

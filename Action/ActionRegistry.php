@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace QueryBuilder\Action;
 
 use QueryBuilder\Enum\Context;
-use Symfony\Component\DependencyInjection\Attribute\TaggedIterator;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
 final readonly class ActionRegistry
 {
     /** @param iterable<ActionInterface> $actions */
     public function __construct(
-        #[TaggedIterator(ActionInterface::TAG)]
+        #[AutowireIterator(ActionInterface::TAG)]
         private iterable $actions,
     ) {
     }

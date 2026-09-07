@@ -7,7 +7,7 @@ namespace QueryBuilder\Controller\Front;
 use QueryBuilder\Service\HookResultPresenter;
 use QueryBuilder\Service\RuntimeContextFactory;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Routing\Attribute\Route;
 use Thelia\Controller\Front\BaseFrontController;
 use Thelia\Core\HttpFoundation\Request;
 

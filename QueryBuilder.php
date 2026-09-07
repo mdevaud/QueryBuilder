@@ -7,13 +7,13 @@ namespace QueryBuilder;
 use Propel\Runtime\Connection\ConnectionInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ServicesConfigurator;
 use Symfony\Component\Finder\Finder;
-use Thelia\Install\Database;
+use Thelia\Core\Install\Database;
 use Thelia\Module\BaseModule;
 
 class QueryBuilder extends BaseModule
 {
     /** @var string */
-    const DOMAIN_NAME = 'querybuilder';
+    public const DOMAIN_NAME = 'querybuilder';
 
     public function postActivation(?ConnectionInterface $con = null): void
     {
@@ -53,7 +53,14 @@ class QueryBuilder extends BaseModule
     public static function configureServices(ServicesConfigurator $servicesConfigurator): void
     {
         $servicesConfigurator->load(self::getModuleCode() . '\\', __DIR__)
-            ->exclude([THELIA_MODULE_DIR . ucfirst(self::getModuleCode()) . "/I18n/*"])
+            ->exclude([
+                __DIR__ . '/I18n/*',
+                __DIR__ . '/Config/**/*',
+                __DIR__ . '/templates/**/*',
+                //Smarty plugin of the Thelia 2 line, replaced by a Twig extension (front chantier)
+                __DIR__ . '/Smarty/*',
+                __DIR__ . '/QueryBuilder.php',
+            ])
             ->autowire(true)
             ->autoconfigure(true);
     }

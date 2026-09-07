@@ -13,7 +13,7 @@ use QueryBuilder\Query\CompiledQuery;
 use QueryBuilder\Query\QueryParts;
 use QueryBuilder\Query\QueryScopeInterface;
 use QueryBuilder\Query\RuntimeContext;
-use Symfony\Component\DependencyInjection\Attribute\TaggedIterator;
+use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 
 /**
  * Compiles a react-querybuilder condition tree into a fully parameterized SQL
@@ -30,7 +30,7 @@ final readonly class SqlBuilder
     /** @param iterable<QueryScopeInterface> $queryScopes */
     public function __construct(
         private DataDictionary $dataDictionary,
-        #[TaggedIterator(QueryScopeInterface::TAG)]
+        #[AutowireIterator(QueryScopeInterface::TAG)]
         private iterable $queryScopes = [],
     ) {
     }

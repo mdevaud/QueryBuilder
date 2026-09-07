@@ -1,10 +1,17 @@
 {
   "name": "thelia/query-builder-module",
-  "description": "QueryBuilder module for Thelia — Generic rule engine: build condition trees in the back-office, compile them to SQL and trigger actions (product lists, processing, filters) on front-office hooks.",
+  "description": "QueryBuilder module for Thelia 3 — Generic rule engine: build condition trees in the back-office, compile them to SQL and trigger actions (product lists, cart and product discounts) on front-office hooks and through the API.",
   "license": "GPL-3.0-or-later",
   "type": "thelia-module",
   "require": {
-    "thelia/installer": "~1.1"
+    "php": ">=8.3",
+    "thelia/installer": "~1.1",
+    "openstudio/query-builder-bundle": "^1.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "QueryBuilder\\": ""
+    }
   },
   "extra": {
     "installer-name": "QueryBuilder"
