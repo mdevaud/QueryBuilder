@@ -1,0 +1,247 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% set d = 'querybuilder.bo.default-twig' %}
+{% form_theme form with bo_form_themes|merge(['@OpenStudioQueryBuilder/form/query_builder.html.twig']) only %}
+{% form_theme action_form with bo_form_themes only %}
+
+{% block title %}{{ 'Rule'|trans({}, d) }} {{ rule.name }}{% endblock %}
+{% block body_testid %}query-builder-rule-edit{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.tools.index') }}">{{ 'Tools'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin_query_builder_list') }}">{{ 'Query Builder'|trans({}, d) }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ rule.name }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    {% set edit_url = path('admin_query_builder_rule_edit', { ruleId: rule.id }) %}
+
+    <div class="container-fluid" data-testid="query-builder-rule-edit-page">
+        {% embed '@BackOfficeDefaultTwig/_page_header.html.twig' with { title: 'Rule'|trans({}, d) ~ ' « ' ~ rule.name ~ ' »' } %}
+            {% block title %}
+                {{ title }}
+                {% if rule.activate %}
+                    <span class="badge text-bg-success">{{ 'Active'|trans({}, d) }}</span>
+                {% else %}
+                    <span class="badge text-bg-secondary">{{ 'Inactive'|trans({}, d) }}</span>
+                {% endif %}
+                <span class="badge text-bg-info">{{ rule.context_label }}</span>
+            {% endblock %}
+            {% block actions %}
+                <a href="{{ path('admin_query_builder_list') }}" class="btn btn-outline-secondary btn-sm" data-testid="qb-rule-back">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i> {{ 'Back to the list'|trans({}, d) }}
+                </a>
+            {% endblock %}
+        {% endembed %}
+
+        <p class="text-body-secondary">{{ 'A rule runs when one of its hooks is called, if its trigger conditions are true. It then produces its actions.'|trans({}, d) }}</p>
+
+        <form method="post"
+              action="{{ path('admin_query_builder_rule_save', { ruleId: rule.id }) }}"
+              data-testid="qb-rule-form"
+              data-controller="qb-editor"
+              data-qb-editor-fields-by-context-value="{{ fields_by_context|json_encode|e('html_attr') }}"
+              data-qb-editor-labels-value="{{ editor_labels|json_encode|e('html_attr') }}">
+            {{ form_widget(form._token) }}
+            <input type="hidden" name="{{ field_name(form.success_url) }}" value="{{ edit_url }}">
+            <input type="hidden" name="{{ field_name(form.error_url) }}" value="{{ edit_url }}">
+
+            {# ------------------------------------------------------------ 1. Identification #}
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-baseline gap-2">
+                    <span class="qb-step">1</span>
+                    <div>
+                        <h2 class="h6 text-uppercase mb-0">{{ 'Identification'|trans({}, d) }}</h2>
+                        <div class="small text-body-secondary">{{ 'Internal use: this information never appears to the customer.'|trans({}, d) }}</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-5">
+                            {{ form_row(form.name, { label: 'Rule name'|trans({}, d) }) }}
+                            {{ form_row(form.activate, { label: 'Active rule'|trans({}, d), help: 'An inactive rule is never evaluated.'|trans({}, d) }) }}
+                        </div>
+                        <div class="col-md-7">
+                            {{ form_row(form.description, { label: 'Description'|trans({}, d), attr: { rows: 4, placeholder: 'What this rule is for, for whom, until when…'|trans({}, d) } }) }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# ------------------------------------------------------------------ 2. Trigger #}
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-baseline gap-2">
+                    <span class="qb-step">2</span>
+                    <div>
+                        <h2 class="h6 text-uppercase mb-0">{{ 'When is the rule evaluated?'|trans({}, d) }}</h2>
+                        <div class="small text-body-secondary">{{ 'The context sets the evaluated object, the available fields and the possible hooks.'|trans({}, d) }}</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label" for="qb-rule-context">{{ 'Context'|trans({}, d) }}</label>
+                                <select id="qb-rule-context"
+                                        name="{{ field_name(form.context) }}"
+                                        class="form-select"
+                                        data-qb-editor-target="context"
+                                        data-action="change->qb-editor#changeContext">
+                                    {% for context in contexts %}
+                                        <option value="{{ context.value }}" data-description="{{ context.description }}" {{ context.value == field_value(form.context) ? 'selected' }}>{{ context.label }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% do form.context.setRendered %}
+                                <div class="form-text" data-qb-editor-target="contextHelp"></div>
+                                <div class="form-text">
+                                    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                    {{ 'Changing the context drops the conditions on fields the new context does not offer.'|trans({}, d) }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label class="form-label">{{ 'Trigger hooks'|trans({}, d) }}</label>
+
+                                <div class="qb-hooks-toolbar">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="qb-editor#checkAllHooks">{{ 'Check all'|trans({}, d) }}</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="qb-editor#uncheckAllHooks">{{ 'Uncheck all'|trans({}, d) }}</button>
+                                    <span class="qb-hooks-count" data-qb-editor-target="hookCount"></span>
+                                </div>
+
+                                <div class="qb-hooks-grid" data-testid="qb-rule-hooks">
+                                    {% for hook in hook_choices %}
+                                        <div class="qb-hook-choice" data-context="{{ hook.context }}" data-qb-editor-target="hookChoice">
+                                            <label class="qb-hook-label">
+                                                <input type="checkbox" class="form-check-input" name="hooks[]" value="{{ hook.code }}" {{ hook.checked ? 'checked' }} data-action="change->qb-editor#refreshHooks">
+                                                <span class="qb-hook-text">
+                                                    {{ hook.label }}
+                                                    {% if hook.label != hook.code %}<small class="text-body-secondary d-block"><code>{{ hook.code }}</code></small>{% endif %}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+
+                                <p class="text-body-secondary mb-1" data-qb-editor-target="hookEmpty" hidden>{{ 'No hook declared for this context in the dictionary.'|trans({}, d) }}</p>
+                                <div class="form-text">{{ 'No hook checked: the rule only runs through the API.'|trans({}, d) }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {# --------------------------------------------------------------- 3. Conditions #}
+            <div class="card mb-4">
+                <div class="card-header d-flex align-items-baseline gap-2">
+                    <span class="qb-step">3</span>
+                    <div class="flex-grow-1">
+                        <h2 class="h6 text-uppercase mb-0">{{ 'Trigger conditions'|trans({}, d) }}</h2>
+                        <div class="small text-body-secondary">{{ 'Optional. Without a condition, the rule triggers on every call of its hooks.'|trans({}, d) }}</div>
+                    </div>
+                    <span class="qb-hooks-count" data-qb-editor-target="counter"></span>
+                </div>
+                <div class="card-body">
+                    {% include 'QueryBuilder/_condition-editor.html.twig' with {
+                        field: form.condition_tree,
+                        fields: context_fields,
+                        summary_label: 'Reading of the condition'|trans({}, d),
+                        empty_hint: 'No condition: add one to restrict the trigger, otherwise the rule always applies.'|trans({}, d),
+                    } only %}
+                </div>
+            </div>
+
+            <div class="qb-form-actions sticky-bottom bg-body py-3 border-top d-flex align-items-center gap-2">
+                <button type="submit" class="btn btn-primary" data-testid="qb-rule-submit">
+                    <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save the rule'|trans({}, d) }}
+                </button>
+                <a href="{{ path('admin_query_builder_list') }}" class="btn btn-outline-secondary">{{ 'Back to the list'|trans({}, d) }}</a>
+                <span class="small text-body-secondary ms-auto">{{ 'The actions below are saved separately.'|trans({}, d) }}</span>
+            </div>
+        </form>
+
+        {# ------------------------------------------------------------------ 4. Actions #}
+        <div class="card mb-4" data-testid="qb-rule-actions">
+            <div class="card-header d-flex align-items-center gap-2">
+                <h2 class="h6 text-uppercase mb-0">{{ 'Actions of the rule'|trans({}, d) }}</h2>
+                <span class="badge text-bg-secondary">{{ actions|length }}</span>
+            </div>
+            <div class="card-body">
+                <p class="text-body-secondary">{{ 'What the rule produces when it triggers: each action has its own product selection and parameters.'|trans({}, d) }}</p>
+
+                <form method="post" action="{{ path('admin_query_builder_action_create', { ruleId: rule.id }) }}" class="row g-2 align-items-end mb-3" data-testid="qb-action-create">
+                    {{ form_widget(action_form._token) }}
+                    <input type="hidden" name="{{ field_name(action_form.error_url) }}" value="{{ edit_url }}">
+                    <div class="col-md-5">
+                        <label class="form-label" for="qb-new-action-name">{{ 'Name of the new action'|trans({}, d) }}</label>
+                        <input type="text" id="qb-new-action-name" name="{{ field_name(action_form.name) }}" class="form-control" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="qb-new-action-code">{{ 'Predefined action'|trans({}, d) }}</label>
+                        <select id="qb-new-action-code" name="{{ field_name(action_form.code) }}" class="form-select">
+                            {% for available_action in available_actions %}
+                                <option value="{{ available_action.code }}">{{ available_action.label }} ({{ available_action.type }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ 'Add an action'|trans({}, d) }}
+                        </button>
+                    </div>
+                </form>
+
+                {% if actions is empty %}
+                    <div class="alert alert-info mb-0">{{ 'No action: the rule produces nothing for now.'|trans({}, d) }}</div>
+                {% else %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th scope="col">{{ 'Name'|trans({}, d) }}</th>
+                                <th scope="col">{{ 'Action'|trans({}, d) }}</th>
+                                <th scope="col">{{ 'Type'|trans({}, d) }}</th>
+                                <th scope="col" class="text-center">{{ 'Status'|trans({}, d) }}</th>
+                                <th scope="col" class="text-end"></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for action in actions %}
+                                <tr data-row-id="{{ action.id }}">
+                                    <td><a href="{{ path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) }}" class="fw-semibold">{{ action.name }}</a></td>
+                                    <td><code>{{ action.code }}</code></td>
+                                    <td><span class="badge text-bg-secondary">{{ action.type }}</span></td>
+                                    <td class="text-center">
+                                        <form method="post" action="{{ token_url('admin_query_builder_action_toggle', { ruleId: rule.id, actionId: action.id }) }}" class="d-inline">
+                                            {% if action.activate %}
+                                                <button type="submit" class="btn btn-sm btn-success" title="{{ 'Click to deactivate'|trans({}, d) }}">{{ 'Active'|trans({}, d) }}</button>
+                                            {% else %}
+                                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ 'Click to activate'|trans({}, d) }}">{{ 'Inactive'|trans({}, d) }}</button>
+                                            {% endif %}
+                                        </form>
+                                    </td>
+                                    <td class="text-end text-nowrap">
+                                        <a href="{{ path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) }}" class="btn btn-sm btn-outline-primary" title="{{ 'Edit'|trans({}, d) }}">
+                                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                                        </a>
+                                        <form method="post" action="{{ token_url('admin_query_builder_action_delete', { ruleId: rule.id, actionId: action.id }) }}" class="d-inline" onsubmit="return confirm({{ 'Delete this action?'|trans({}, d)|json_encode|e('html_attr') }});">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ 'Delete'|trans({}, d) }}">
+                                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

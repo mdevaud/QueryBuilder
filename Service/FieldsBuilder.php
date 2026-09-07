@@ -11,20 +11,38 @@ use QueryBuilder\Enum\Context;
 use Thelia\Log\Tlog;
 
 /**
- * Builds the "fields" configuration consumed by the react-querybuilder editor
- * in the back-office, for a given rule context.
+ * Builds the "fields" configuration consumed by the query-builder-bundle editor
+ * (OpenStudio\QueryBuilderBundle\Dto\Field shape), for a given rule context.
  */
 final readonly class FieldsBuilder
 {
     //Beyond this size a select is unusable: fall back to the free input
     private const MAX_VALUES = 300;
 
+    //The editor stores the values picked in a select as a plain equality
+    private const VALUES_LIST_OPERATOR = 'valuesList';
+
+    //The editor has no datetime type: a datetime column is entered as a date (SqlBuilder compares on DATE())
+    private const VALUE_TYPES = [
+        FieldDefinition::TYPE_TEXT => 'text',
+        FieldDefinition::TYPE_NUMBER => 'number',
+        FieldDefinition::TYPE_DATE => 'date',
+        FieldDefinition::TYPE_DATETIME => 'date',
+        FieldDefinition::TYPE_BOOLEAN => 'boolean',
+    ];
+
     public function __construct(
         private DataDictionary $dataDictionary,
     ) {
     }
 
-    public function buildForContext(Context $context, string $locale = 'fr_FR'): array
+    /**
+     * Fields of the given context, every field when null (the form option must
+     * accept every field: the context restriction is enforced by SqlBuilder::validateTree()).
+     *
+     * @return list<array{name: string, type: string, label: string, labelInformation: ?string, values: ?list<array{name: string, label: string}>, operators: list<string>}>
+     */
+    public function buildForContext(?Context $context, string $locale = 'fr_FR'): array
     {
         $fields = [];
 
@@ -37,56 +55,45 @@ final readonly class FieldsBuilder
         return $fields;
     }
 
+    /** @return array<string, list<array>> keyed by context value */
+    public function buildForAllContexts(string $locale = 'fr_FR'): array
+    {
+        $fieldsByContext = [];
+
+        foreach (Context::cases() as $context) {
+            $fieldsByContext[$context->value] = $this->buildForContext($context, $locale);
+        }
+
+        return $fieldsByContext;
+    }
+
     private function buildField(FieldDefinition $field, string $locale): array
     {
-        $built = [
+        $operators = Operators::forField($field);
+        $values = $field->valuesQuery !== null ? $this->fetchValues($field, $locale) : null;
+
+        if ($values !== null) {
+            //A field with a list of values gets the select editor first, the free operators after
+            array_unshift($operators, self::VALUES_LIST_OPERATOR);
+        }
+
+        return [
             'name' => $field->code,
+            'type' => self::VALUE_TYPES[$field->type] ?? 'text',
             'label' => $field->label,
-            'operators' => array_map(
-                static fn (string $operator): array => [
-                    'name' => $operator,
-                    'label' => Operators::LABELS[$operator] ?? $operator,
-                ],
-                Operators::forField($field)
-            ),
+            'labelInformation' => null,
+            'values' => $values,
+            'operators' => $operators,
         ];
-
-        switch ($field->type) {
-            case FieldDefinition::TYPE_NUMBER:
-                $built['inputType'] = 'number';
-                break;
-            case FieldDefinition::TYPE_DATE:
-                $built['inputType'] = 'date';
-                break;
-            case FieldDefinition::TYPE_DATETIME:
-                $built['inputType'] = 'datetime-local';
-                break;
-            case FieldDefinition::TYPE_BOOLEAN:
-                $built['valueEditorType'] = 'select';
-                $built['values'] = [
-                    ['name' => 'true', 'label' => 'Oui'],
-                    ['name' => 'false', 'label' => 'Non'],
-                ];
-                $built['defaultValue'] = 'false';
-                break;
-        }
-
-        if ($field->valuesQuery !== null && ($values = $this->fetchValues($field, $locale)) !== null) {
-            //The editor JS switches the value input to a select/multiselect when values are present
-            $built['values'] = $values;
-        }
-
-        return $built;
     }
 
     /**
-     * Runs the values_query of the field ("value" + optional "label" and "group"
-     * columns). A "group" column switches the editor select to <optgroup> sections,
-     * in SQL row order. Returns null (free input fallback) on SQL error or
-     * oversized result: the editor must stay usable even when a referential
-     * misbehaves.
+     * Runs the values_query of the field ("value" + optional "label" columns; a
+     * "group" column is accepted but flattened, the editor has no option groups).
+     * Returns null (free input fallback) on SQL error, oversized or empty result:
+     * the editor must stay usable even when a referential misbehaves.
      *
-     * @return array<int, array{name: string, label: string}>|array<int, array{label: string, options: array<int, array{name: string, label: string}>}>|null
+     * @return list<array{name: string, label: string}>|null
      */
     private function fetchValues(FieldDefinition $field, string $locale): ?array
     {
@@ -108,6 +115,10 @@ final readonly class FieldsBuilder
             return null;
         }
 
+        if ($rows === []) {
+            return null;
+        }
+
         if (\count($rows) > self::MAX_VALUES) {
             Tlog::getInstance()->addWarning(sprintf(
                 'QueryBuilder: values_query of field "%s" returned %d rows (max %d), falling back to free input.',
@@ -120,8 +131,6 @@ final readonly class FieldsBuilder
         }
 
         $values = [];
-        $groups = [];
-        $grouped = $rows !== [] && \array_key_exists('group', $rows[0]);
 
         foreach ($rows as $row) {
             if (!\array_key_exists('value', $row)) {
@@ -133,24 +142,7 @@ final readonly class FieldsBuilder
             }
 
             $value = (string) $row['value'];
-            $option = ['name' => $value, 'label' => (string) ($row['label'] ?? $value)];
-
-            if ($grouped) {
-                $groups[(string) ($row['group'] ?? '')][] = $option;
-                continue;
-            }
-
-            $values[] = $option;
-        }
-
-        if ($grouped) {
-            $sections = [];
-
-            foreach ($groups as $groupLabel => $groupOptions) {
-                $sections[] = ['label' => (string) $groupLabel, 'options' => $groupOptions];
-            }
-
-            return $sections;
+            $values[] = ['name' => $value, 'label' => (string) ($row['label'] ?? $value)];
         }
 
         return $values;

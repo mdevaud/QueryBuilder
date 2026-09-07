@@ -1,0 +1,19 @@
+{# Condition tree editor: the query-builder-bundle widget plus the module feedback
+   (condition counter, readable summary, empty state), driven by the qb-editor
+   Stimulus controller declared on the enclosing form.
+
+   Variables: field (the QueryBuilderType form view), fields (the fields of the
+   current context, rendered in the widget), summary_label, empty_hint. #}
+<div class="qb-condition-editor">
+    <div class="qb-summary" data-qb-editor-target="summary">
+        <span class="qb-summary-label">{{ summary_label }}</span>
+        <div data-qb-editor-target="summaryText"></div>
+    </div>
+
+    <p class="qb-empty-hint" data-qb-editor-target="emptyHint">{{ empty_hint }}</p>
+
+    <div class="qb-tree-panel">
+        {{ form_errors(field) }}
+        {{ form_widget(field, { fields: fields }) }}
+    </div>
+</div>

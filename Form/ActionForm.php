@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace QueryBuilder\Form;
 
+use OpenStudio\QueryBuilderBundle\Enum\QueryBuilderProcessor;
+use OpenStudio\QueryBuilderBundle\Form\QueryBuilderType;
+use QueryBuilder\Service\FieldsBuilder;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
-use Symfony\Component\Form\Extension\Core\Type\HiddenType;
 use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
@@ -16,6 +18,11 @@ use Thelia\Form\BaseForm;
 
 class ActionForm extends BaseForm
 {
+    public function __construct(
+        private readonly FieldsBuilder $fieldsBuilder,
+    ) {
+    }
+
     public static function getName(): string
     {
         return 'query_builder_action';
@@ -23,10 +30,12 @@ class ActionForm extends BaseForm
 
     protected function buildForm(): void
     {
+        $locale = $this->getRequest()->getLocale();
+
         $this->formBuilder
             ->add('name', TextType::class, [
                 'constraints' => [new NotBlank()],
-                'label' => 'Nom',
+                'label' => 'Name',
             ])
             ->add('description', TextareaType::class, [
                 'required' => false,
@@ -38,38 +47,43 @@ class ActionForm extends BaseForm
             ])
             ->add('limit', IntegerType::class, [
                 'required' => false,
-                'label' => 'Nombre de produits',
+                'label' => 'Number of products',
                 'constraints' => [new Range(min: 1, max: 50)],
             ])
             ->add('persist_days', IntegerType::class, [
                 'required' => false,
-                'label' => 'Persistance des suggestions (jours)',
+                'label' => 'Suggestions persistence (days)',
                 'constraints' => [new Range(min: 1, max: 365)],
             ])
             ->add('discount_rate', NumberType::class, [
                 'required' => false,
-                'label' => 'Taux de remise (%)',
+                'label' => 'Discount rate (%)',
                 'constraints' => [new Range(min: 0.01, max: 99.99)],
             ])
             ->add('discount_label', TextType::class, [
                 'required' => false,
-                'label' => 'Libellé de la remise',
+                'label' => 'Discount label',
             ])
             ->add('discount_cumulative', CheckboxType::class, [
                 'required' => false,
-                'label' => 'Cumulable avec une promotion déjà appliquée',
+                'label' => 'Stackable with an existing promotion',
             ])
             ->add('cart_discount_rate', NumberType::class, [
                 'required' => false,
-                'label' => 'Taux de remise panier (%)',
+                'label' => 'Cart discount rate (%)',
                 'constraints' => [new Range(min: 0.01, max: 99.99)],
             ])
             ->add('cart_discount_free_shipping', CheckboxType::class, [
                 'required' => false,
-                'label' => 'Frais de port offerts',
+                'label' => 'Free shipping',
             ])
-            ->add('condition_tree', HiddenType::class, [
+            ->add('condition_tree', QueryBuilderType::class, [
                 'required' => false,
+                'label' => false,
+                'processor' => QueryBuilderProcessor::Native,
+                //Every dictionary field, the rule context is enforced by SqlBuilder::validateTree() on save
+                'fields' => $this->fieldsBuilder->buildForContext(null, $locale),
+                'lang' => $locale,
             ])
             ->add('activate', CheckboxType::class, [
                 'required' => false,

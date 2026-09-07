@@ -247,7 +247,7 @@ final readonly class SqlBuilder
 
         $chain = $this->fieldJoinChain($field);
         $comparison = $this->compileComparison(
-            sprintf('`%s`.`%s`', $table, $column),
+            $this->dateOnly($field, sprintf('`%s`.`%s`', $table, $column)),
             $negatedOperators[$operator] ?? $operator,
             $value,
             $field,
@@ -310,7 +310,7 @@ final readonly class SqlBuilder
     private function compileLeftHandSide(FieldDefinition $field, QueryParts $queryParts): string
     {
         if ($field->expression !== null) {
-            return '(' . $field->expression . ')';
+            return $this->dateOnly($field, '(' . $field->expression . ')');
         }
 
         [$table, $column] = explode('.', (string) $field->column, 2);
@@ -324,7 +324,16 @@ final readonly class SqlBuilder
 
         $this->collectJoinChain($table, $queryParts, []);
 
-        return sprintf('`%s`.`%s`', $table, $column);
+        return $this->dateOnly($field, sprintf('`%s`.`%s`', $table, $column));
+    }
+
+    /**
+     * The back-office editor has no datetime type: a datetime field is entered as a
+     * plain date, so its column is compared on its date part.
+     */
+    private function dateOnly(FieldDefinition $field, string $leftHandSide): string
+    {
+        return $field->type === FieldDefinition::TYPE_DATETIME ? 'DATE(' . $leftHandSide . ')' : $leftHandSide;
     }
 
     /** @param string[] $visiting */

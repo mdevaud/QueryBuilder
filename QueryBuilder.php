@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace QueryBuilder;
 
+use OpenStudio\QueryBuilderBundle\Form\QueryBuilderType;
+use OpenStudio\QueryBuilderBundle\Service\FormOptionsNormalizer;
 use Propel\Runtime\Connection\ConnectionInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ServicesConfigurator;
 use Symfony\Component\Finder\Finder;
 use Thelia\Core\Install\Database;
 use Thelia\Module\BaseModule;
+
+use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 class QueryBuilder extends BaseModule
 {
@@ -63,5 +68,12 @@ class QueryBuilder extends BaseModule
             ])
             ->autowire(true)
             ->autoconfigure(true);
+
+        //Thelia builds its forms from its own factory builder, fed with the types tagged
+        //thelia.form.type only: the bundle type, tagged form.type by Symfony, is registered
+        //there too so the module BaseForm subclasses can add it
+        $servicesConfigurator->set('querybuilder.form.type.query_builder', QueryBuilderType::class)
+            ->args([service(FormOptionsNormalizer::class), param('kernel.default_locale')])
+            ->tag('thelia.form.type');
     }
 }

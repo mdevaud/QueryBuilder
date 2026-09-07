@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace QueryBuilder\Controller\Back;
 
+use QueryBuilder\Action\ActionInterface;
 use QueryBuilder\Action\ActionRegistry;
 use QueryBuilder\Action\ApplyCartDiscountAction;
 use QueryBuilder\Action\ApplyDiscountAction;
@@ -15,10 +16,12 @@ use QueryBuilder\Model\QueryBuilderActionQuery;
 use QueryBuilder\Model\QueryBuilderRule;
 use QueryBuilder\Model\QueryBuilderRuleQuery;
 use QueryBuilder\QueryBuilder;
+use QueryBuilder\Service\EditorLabels;
 use QueryBuilder\Service\FieldsBuilder;
 use QueryBuilder\Service\SqlBuilder;
 use QueryBuilder\Service\SuggestionService;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -26,6 +29,7 @@ use Thelia\Controller\Admin\BaseAdminController;
 use Thelia\Core\HttpFoundation\Request;
 use Thelia\Core\Template\ParserContext;
 use Thelia\Core\Translation\Translator;
+use Thelia\Form\BaseForm;
 use Thelia\Form\Exception\FormValidationException;
 use Thelia\Log\Tlog;
 use Thelia\Tools\TokenProvider;
@@ -45,7 +49,7 @@ class ActionController extends BaseAdminController
 
         try {
             $rule = $this->requireRule($ruleId);
-            $data = $this->validateForm($form)->getData();
+            $data = $this->validateForm($form, 'POST')->getData();
             $handler = $this->requireHandler($data['code'], $rule, $actionRegistry);
 
             $action = (new QueryBuilderAction())
@@ -60,7 +64,7 @@ class ActionController extends BaseAdminController
             //URL absolue : les routes #[Route] du module ne sont pas dans "router.admin",
             //seul router consulté par generateRedirectFromRoute (RouteNotFoundException sinon)
             return $this->generateRedirect(URL::getInstance()->absoluteUrl(
-                sprintf('/admin/query_builder/rule/%d/action/%d', $rule->getId(), $action->getId())
+                sprintf('%s/rule/%d/action/%d', RuleController::LIST_PATH, $rule->getId(), $action->getId())
             ));
         } catch (FormValidationException $exception) {
             $errorMessage = $this->createStandardFormValidationErrorMessage($exception);
@@ -71,10 +75,7 @@ class ActionController extends BaseAdminController
             $errorMessage = $this->unexpectedErrorMessage();
         }
 
-        $form->setErrorMessage($errorMessage);
-        $parserContext->addForm($form)->setGeneralError($errorMessage);
-
-        return $this->generateErrorRedirect($form);
+        return $this->redirectWithError($form, $parserContext, $errorMessage);
     }
 
     #[Route('/{actionId}', name: 'edit', requirements: ['actionId' => '\d+'], methods: 'GET')]
@@ -83,12 +84,13 @@ class ActionController extends BaseAdminController
         int $actionId,
         ActionRegistry $actionRegistry,
         FieldsBuilder $fieldsBuilder,
+        EditorLabels $editorLabels,
     ): Response {
         $rule = QueryBuilderRuleQuery::create()->findOneById($ruleId);
         $action = QueryBuilderActionQuery::create()->filterByRuleId($ruleId)->findOneById($actionId);
 
         if ($rule === null || $action === null) {
-            return $this->generateRedirect(URL::getInstance()->absoluteUrl('/admin/query_builder'));
+            return $this->generateRedirect(URL::getInstance()->absoluteUrl(RuleController::LIST_PATH));
         }
 
         $context = Context::tryFrom($rule->getContext() ?? '') ?? Context::GLOBAL_SCOPE;
@@ -103,8 +105,24 @@ class ActionController extends BaseAdminController
             ];
         }
 
-        return $this->render('query-builder/action-edit', [
-            'admin_current_location' => RuleController::ADMIN_LOCATION,
+        $form = $this->createForm(ActionForm::getName(), FormType::class, [
+            'name' => $action->getName(),
+            'description' => $action->getDescription(),
+            'code' => $action->getCode(),
+            'limit' => isset($parameters['limit']) ? (int) $parameters['limit'] : null,
+            'persist_days' => isset($parameters['persist_days']) ? (int) $parameters['persist_days'] : null,
+            'discount_rate' => isset($parameters['discount_rate']) ? (float) $parameters['discount_rate'] : null,
+            'discount_label' => $parameters['discount_label'] ?? null,
+            'discount_cumulative' => (bool) ($parameters['discount_cumulative'] ?? false),
+            'cart_discount_rate' => isset($parameters['cart_discount_rate']) ? (float) $parameters['cart_discount_rate'] : null,
+            'cart_discount_free_shipping' => (bool) ($parameters['cart_discount_free_shipping'] ?? false),
+            'condition_tree' => $action->getConditionTreeArray(),
+            'activate' => (bool) $action->getActivate(),
+        ]);
+
+        $contextFields = $fieldsBuilder->buildForContext($context, $this->getRequest()->getLocale());
+
+        return $this->render('action-edit', [
             'rule' => [
                 'id' => $rule->getId(),
                 'name' => $rule->getName(),
@@ -114,21 +132,17 @@ class ActionController extends BaseAdminController
             'action' => [
                 'id' => $action->getId(),
                 'name' => $action->getName(),
-                'description' => $action->getDescription(),
                 'code' => $action->getCode(),
                 'type' => $action->getType(),
-                'condition_tree' => $action->getConditionTree(),
                 'activate' => (bool) $action->getActivate(),
-                'param_limit' => $parameters['limit'] ?? '',
-                'param_persist_days' => $parameters['persist_days'] ?? '',
-                'param_discount_rate' => $parameters['discount_rate'] ?? '',
-                'param_discount_label' => $parameters['discount_label'] ?? '',
-                'param_discount_cumulative' => (bool) ($parameters['discount_cumulative'] ?? false),
-                'param_cart_discount_rate' => $parameters['cart_discount_rate'] ?? '',
-                'param_cart_discount_free_shipping' => (bool) ($parameters['cart_discount_free_shipping'] ?? false),
             ],
+            'form' => $form->createView()->getView(),
             'available_actions' => $availableActions,
-            'fields' => json_encode($fieldsBuilder->buildForContext($context), \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR),
+            'discount_code' => ApplyDiscountAction::CODE,
+            'cart_discount_code' => ApplyCartDiscountAction::CODE,
+            'fields_by_context' => [$context->value => $contextFields],
+            'context_fields' => $contextFields,
+            'editor_labels' => $editorLabels->build(),
         ]);
     }
 
@@ -152,9 +166,9 @@ class ActionController extends BaseAdminController
                 throw new \RuntimeException(sprintf('Action #%d not found.', $actionId));
             }
 
-            $data = $this->validateForm($form)->getData();
+            $data = $this->validateForm($form, 'POST')->getData();
             $handler = $this->requireHandler($data['code'], $rule, $actionRegistry);
-            $conditionTree = $this->parseConditionTree(
+            $conditionTree = $this->validateConditionTree(
                 $data['condition_tree'] ?? null,
                 $sqlBuilder,
                 Context::tryFrom($rule->getContext() ?? '') ?? Context::GLOBAL_SCOPE
@@ -179,6 +193,8 @@ class ActionController extends BaseAdminController
 
             $eventDispatcher->dispatch(new QueryBuilderRulesChangedEvent());
 
+            $this->addFlash('success', $this->trans('The action has been saved.'));
+
             return $this->generateSuccessRedirect($form);
         } catch (FormValidationException $exception) {
             $errorMessage = $this->createStandardFormValidationErrorMessage($exception);
@@ -189,10 +205,7 @@ class ActionController extends BaseAdminController
             $errorMessage = $this->unexpectedErrorMessage();
         }
 
-        $form->setErrorMessage($errorMessage);
-        $parserContext->addForm($form)->setGeneralError($errorMessage);
-
-        return $this->generateErrorRedirect($form);
+        return $this->redirectWithError($form, $parserContext, $errorMessage);
     }
 
     #[Route('/{actionId}/toggle', name: 'toggle', requirements: ['actionId' => '\d+'], methods: 'POST')]
@@ -203,7 +216,7 @@ class ActionController extends BaseAdminController
         int $actionId,
         EventDispatcherInterface $eventDispatcher,
     ): RedirectResponse {
-        $tokenProvider->checkToken($request->query->get('_token'));
+        $tokenProvider->checkToken((string) $request->query->get('_token'));
 
         $action = QueryBuilderActionQuery::create()->filterByRuleId($ruleId)->findOneById($actionId);
 
@@ -212,7 +225,7 @@ class ActionController extends BaseAdminController
             $eventDispatcher->dispatch(new QueryBuilderRulesChangedEvent());
         }
 
-        return $this->generateRedirect(URL::getInstance()->absoluteUrl('/admin/query_builder/rule/' . $ruleId));
+        return $this->generateRedirect(URL::getInstance()->absoluteUrl(RuleController::LIST_PATH . '/rule/' . $ruleId));
     }
 
     #[Route('/{actionId}/delete', name: 'delete', requirements: ['actionId' => '\d+'], methods: 'POST')]
@@ -223,7 +236,7 @@ class ActionController extends BaseAdminController
         int $actionId,
         EventDispatcherInterface $eventDispatcher,
     ): RedirectResponse {
-        $tokenProvider->checkToken($request->query->get('_token'));
+        $tokenProvider->checkToken((string) $request->query->get('_token'));
 
         $action = QueryBuilderActionQuery::create()->filterByRuleId($ruleId)->findOneById($actionId);
 
@@ -232,16 +245,31 @@ class ActionController extends BaseAdminController
             $eventDispatcher->dispatch(new QueryBuilderRulesChangedEvent());
         }
 
-        return $this->generateRedirect(URL::getInstance()->absoluteUrl('/admin/query_builder/rule/' . $ruleId));
+        return $this->generateRedirect(URL::getInstance()->absoluteUrl(RuleController::LIST_PATH . '/rule/' . $ruleId));
+    }
+
+    private function redirectWithError(BaseForm $form, ParserContext $parserContext, string $errorMessage): RedirectResponse|Response
+    {
+        $form->setErrorMessage($errorMessage);
+        $parserContext->addForm($form)->setGeneralError($errorMessage);
+        $this->addFlash('danger', $errorMessage);
+
+        return $this->generateErrorRedirect($form);
+    }
+
+    private function addFlash(string $type, string $message): void
+    {
+        $this->getRequest()->getSession()->getFlashBag()->add($type, $message);
+    }
+
+    private function trans(string $id): string
+    {
+        return Translator::getInstance()->trans($id, [], QueryBuilder::DOMAIN_NAME);
     }
 
     private function unexpectedErrorMessage(): string
     {
-        return Translator::getInstance()->trans(
-            'An unexpected error occurred, please check the logs.',
-            [],
-            QueryBuilder::DOMAIN_NAME
-        );
+        return $this->trans('An unexpected error occurred, please check the logs.');
     }
 
     private function requireRule(int $ruleId): QueryBuilderRule
@@ -255,7 +283,7 @@ class ActionController extends BaseAdminController
         return $rule;
     }
 
-    private function requireHandler(string $code, QueryBuilderRule $rule, ActionRegistry $actionRegistry): \QueryBuilder\Action\ActionInterface
+    private function requireHandler(string $code, QueryBuilderRule $rule, ActionRegistry $actionRegistry): ActionInterface
     {
         $context = Context::tryFrom($rule->getContext() ?? '') ?? Context::GLOBAL_SCOPE;
         $handler = $actionRegistry->forContext($context)[$code] ?? null;
@@ -271,20 +299,15 @@ class ActionController extends BaseAdminController
         return $handler;
     }
 
-    private function parseConditionTree(?string $rawTree, SqlBuilder $sqlBuilder, Context $context): ?array
+    /**
+     * The form type already refused any field or operator outside the dictionary;
+     * the context restriction of the fields is checked here, on the stored shape.
+     * A group emptied of its rules is "no condition".
+     */
+    private function validateConditionTree(?array $conditionTree, SqlBuilder $sqlBuilder, Context $context): ?array
     {
-        if ($rawTree === null || trim($rawTree) === '' || $rawTree === 'null') {
+        if ($conditionTree === null || ($conditionTree['rules'] ?? []) === []) {
             return null;
-        }
-
-        try {
-            $conditionTree = json_decode($rawTree, true, 512, \JSON_THROW_ON_ERROR);
-        } catch (\JsonException $exception) {
-            throw new \InvalidArgumentException(sprintf('Invalid condition tree JSON: %s.', $exception->getMessage()), 0, $exception);
-        }
-
-        if (!\is_array($conditionTree)) {
-            throw new \InvalidArgumentException('Invalid condition tree JSON.');
         }
 
         $sqlBuilder->validateTree($conditionTree, $context);
@@ -293,9 +316,9 @@ class ActionController extends BaseAdminController
     }
 
     /**
-     * Strips the react-querybuilder bookkeeping (node ids, default valueSource
-     * and "not" flags) so two trees compare on their semantics only: the editor
-     * may re-serialize an unchanged tree with different ids or extra defaults.
+     * Strips the editor bookkeeping (node ids, default valueSource and "not"
+     * flags) so two trees compare on their semantics only: the editor may
+     * re-serialize an unchanged tree with different ids or extra defaults.
      */
     private function normalizeConditionTree(?array $tree): ?array
     {
@@ -347,7 +370,7 @@ class ActionController extends BaseAdminController
             $freeShipping = (bool) ($data['cart_discount_free_shipping'] ?? false);
 
             if (($rate === null || $rate <= 0) && !$freeShipping) {
-                throw new \InvalidArgumentException('Une remise globale panier nécessite un taux supérieur à 0 ou les frais de port offerts.');
+                throw new \InvalidArgumentException($this->trans('A cart discount needs a rate above 0 or free shipping.'));
             }
 
             if ($rate !== null && $rate > 0) {
@@ -361,7 +384,7 @@ class ActionController extends BaseAdminController
 
         if ($data['code'] === ApplyDiscountAction::CODE) {
             if ($data['discount_rate'] === null || (float) $data['discount_rate'] <= 0) {
-                throw new \InvalidArgumentException('Une action remise nécessite un taux de remise supérieur à 0.');
+                throw new \InvalidArgumentException($this->trans('A discount action needs a discount rate above 0.'));
             }
 
             $parameters['discount_rate'] = (float) $data['discount_rate'];

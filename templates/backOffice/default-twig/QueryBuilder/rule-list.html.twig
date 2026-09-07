@@ -1,0 +1,108 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% set d = 'querybuilder.bo.default-twig' %}
+{% form_theme create_form with bo_form_themes only %}
+
+{% block title %}{{ 'Query Builder'|trans({}, d) }}{% endblock %}
+{% block body_testid %}query-builder-rules{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.tools.index') }}">{{ 'Tools'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Query Builder'|trans({}, d) }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="query-builder-rules-page">
+        {% embed '@BackOfficeDefaultTwig/_page_header.html.twig' with { title: 'Rules'|trans({}, d) } %}{% endembed %}
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="post" action="{{ path('admin_query_builder_rule_create') }}" class="row g-2 align-items-end" data-testid="qb-rule-create">
+                    {{ form_widget(create_form._token) }}
+                    <input type="hidden" name="{{ field_name(create_form.error_url) }}" value="{{ path('admin_query_builder_list') }}">
+                    <div class="col-md-5">
+                        <label class="form-label" for="qb-new-rule-name">{{ 'Name of the new rule'|trans({}, d) }}</label>
+                        <input type="text" id="qb-new-rule-name" name="{{ field_name(create_form.name) }}" class="form-control" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="qb-new-rule-context">{{ 'Context'|trans({}, d) }}</label>
+                        <select id="qb-new-rule-context" name="{{ field_name(create_form.context) }}" class="form-select">
+                            {% for context in contexts %}
+                                <option value="{{ context.value }}">{{ context.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ 'Add a rule'|trans({}, d) }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if rules is empty %}
+            <div class="alert alert-info" data-testid="qb-rules-empty">{{ 'No rule yet.'|trans({}, d) }}</div>
+        {% else %}
+            <div class="card">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" data-testid="qb-rules-table">
+                        <thead>
+                        <tr>
+                            <th scope="col">{{ 'Name'|trans({}, d) }}</th>
+                            <th scope="col">{{ 'Context'|trans({}, d) }}</th>
+                            <th scope="col">{{ 'Hooks'|trans({}, d) }}</th>
+                            <th scope="col" class="text-center">{{ 'Actions'|trans({}, d) }}</th>
+                            <th scope="col" class="text-center">{{ 'Status'|trans({}, d) }}</th>
+                            <th scope="col" class="text-end"></th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for rule in rules %}
+                            <tr data-row-id="{{ rule.id }}">
+                                <td>
+                                    <a href="{{ path('admin_query_builder_rule_edit', { ruleId: rule.id }) }}" class="fw-semibold">{{ rule.name }}</a>
+                                    {% if rule.description %}<div class="small text-body-secondary">{{ rule.description|length > 80 ? rule.description|slice(0, 80) ~ '…' : rule.description }}</div>{% endif %}
+                                </td>
+                                <td><span class="badge text-bg-info" title="{{ rule.context }}">{{ rule.context_label }}</span></td>
+                                <td>
+                                    {% for hook in rule.hooks %}
+                                        <span class="badge text-bg-secondary" title="{{ hook.code }}">{{ hook.label }}</span>
+                                    {% else %}
+                                        <span class="text-body-secondary">–</span>
+                                    {% endfor %}
+                                </td>
+                                <td class="text-center">{{ rule.action_count }}</td>
+                                <td class="text-center">
+                                    <form method="post" action="{{ token_url('admin_query_builder_rule_toggle', { ruleId: rule.id }) }}" class="d-inline">
+                                        {% if rule.activate %}
+                                            <button type="submit" class="btn btn-sm btn-success" title="{{ 'Click to deactivate'|trans({}, d) }}">{{ 'Active'|trans({}, d) }}</button>
+                                        {% else %}
+                                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ 'Click to activate'|trans({}, d) }}">{{ 'Inactive'|trans({}, d) }}</button>
+                                        {% endif %}
+                                    </form>
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    <a href="{{ path('admin_query_builder_rule_edit', { ruleId: rule.id }) }}" class="btn btn-sm btn-outline-primary" title="{{ 'Edit'|trans({}, d) }}">
+                                        <i class="bi bi-pencil" aria-hidden="true"></i>
+                                    </a>
+                                    <form method="post" action="{{ token_url('admin_query_builder_rule_delete', { ruleId: rule.id }) }}" class="d-inline" onsubmit="return confirm({{ 'Delete this rule and its actions?'|trans({}, d)|json_encode|e('html_attr') }});">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ 'Delete'|trans({}, d) }}">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

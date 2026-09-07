@@ -7,15 +7,18 @@ namespace QueryBuilder\Controller\Back;
 use QueryBuilder\Action\ActionRegistry;
 use QueryBuilder\Enum\Context;
 use QueryBuilder\Event\QueryBuilderRulesChangedEvent;
+use QueryBuilder\Form\ActionForm;
 use QueryBuilder\Form\RuleForm;
 use QueryBuilder\Model\QueryBuilderActionQuery;
 use QueryBuilder\Model\QueryBuilderRule;
 use QueryBuilder\Model\QueryBuilderRuleQuery;
 use QueryBuilder\QueryBuilder;
 use QueryBuilder\Service\DataDictionary;
+use QueryBuilder\Service\EditorLabels;
 use QueryBuilder\Service\FieldsBuilder;
 use QueryBuilder\Service\SqlBuilder;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Form\Extension\Core\Type\FormType;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -23,6 +26,7 @@ use Thelia\Controller\Admin\BaseAdminController;
 use Thelia\Core\HttpFoundation\Request;
 use Thelia\Core\Template\ParserContext;
 use Thelia\Core\Translation\Translator;
+use Thelia\Form\BaseForm;
 use Thelia\Form\Exception\FormValidationException;
 use Thelia\Log\Tlog;
 use Thelia\Tools\TokenProvider;
@@ -31,9 +35,9 @@ use Thelia\Tools\URL;
 #[Route('/admin/query_builder', name: 'admin_query_builder_')]
 class RuleController extends BaseAdminController
 {
-    public const ADMIN_LOCATION = 'QueryBuilder';
+    public const LIST_PATH = '/admin/query_builder';
 
-    #[Route('', name: 'list')]
+    #[Route('', name: 'list', methods: 'GET')]
     public function listRules(DataDictionary $dataDictionary): Response
     {
         $actionCounts = [];
@@ -65,10 +69,10 @@ class RuleController extends BaseAdminController
             ];
         }
 
-        return $this->render('query-builder/rule-list', [
-            'admin_current_location' => self::ADMIN_LOCATION,
+        return $this->render('rule-list', [
             'rules' => $rules,
             'contexts' => self::contextChoices(),
+            'create_form' => $this->createForm(RuleForm::getName())->createView()->getView(),
         ]);
     }
 
@@ -78,7 +82,7 @@ class RuleController extends BaseAdminController
         $form = $this->createForm(RuleForm::getName());
 
         try {
-            $data = $this->validateForm($form)->getData();
+            $data = $this->validateForm($form, 'POST')->getData();
             $context = $this->requireContext($data['context']);
 
             $rule = (new QueryBuilderRule())
@@ -92,7 +96,7 @@ class RuleController extends BaseAdminController
 
             //URL absolue : les routes #[Route] du module ne sont pas dans "router.admin",
             //seul router consulté par generateRedirectFromRoute (RouteNotFoundException sinon)
-            return $this->generateRedirect(URL::getInstance()->absoluteUrl('/admin/query_builder/rule/' . $rule->getId()));
+            return $this->generateRedirect(URL::getInstance()->absoluteUrl(self::LIST_PATH . '/rule/' . $rule->getId()));
         } catch (FormValidationException $exception) {
             $errorMessage = $this->createStandardFormValidationErrorMessage($exception);
         } catch (\InvalidArgumentException $exception) {
@@ -102,10 +106,7 @@ class RuleController extends BaseAdminController
             $errorMessage = $this->unexpectedErrorMessage();
         }
 
-        $form->setErrorMessage($errorMessage);
-        $parserContext->addForm($form)->setGeneralError($errorMessage);
-
-        return $this->generateErrorRedirect($form);
+        return $this->redirectWithError($form, $parserContext, $errorMessage);
     }
 
     #[Route('/rule/{ruleId}', name: 'rule_edit', requirements: ['ruleId' => '\d+'], methods: 'GET')]
@@ -114,11 +115,12 @@ class RuleController extends BaseAdminController
         DataDictionary $dataDictionary,
         FieldsBuilder $fieldsBuilder,
         ActionRegistry $actionRegistry,
+        EditorLabels $editorLabels,
     ): Response {
         $rule = QueryBuilderRuleQuery::create()->findOneById($ruleId);
 
         if ($rule === null) {
-            return $this->generateRedirect(URL::getInstance()->absoluteUrl('/admin/query_builder'));
+            return $this->generateRedirect(URL::getInstance()->absoluteUrl(self::LIST_PATH));
         }
 
         $context = Context::tryFrom($rule->getContext() ?? '') ?? Context::GLOBAL_SCOPE;
@@ -144,7 +146,6 @@ class RuleController extends BaseAdminController
         }
 
         $hookChoices = [];
-        $fieldsByContext = [];
         foreach (Context::cases() as $contextCase) {
             foreach ($dataDictionary->getHooks($contextCase) as $hookCode => $hookLabel) {
                 $hookChoices[] = [
@@ -154,26 +155,35 @@ class RuleController extends BaseAdminController
                     'checked' => $contextCase === $context && \in_array($hookCode, $rule->getHookCodes(), true),
                 ];
             }
-            $fieldsByContext[$contextCase->value] = $fieldsBuilder->buildForContext($contextCase);
         }
 
-        return $this->render('query-builder/rule-edit', [
-            'admin_current_location' => self::ADMIN_LOCATION,
+        $form = $this->createForm(RuleForm::getName(), FormType::class, [
+            'name' => $rule->getName(),
+            'description' => $rule->getDescription(),
+            'context' => $context->value,
+            'condition_tree' => $rule->getConditionTreeArray(),
+            'activate' => (bool) $rule->getActivate(),
+        ]);
+
+        $fieldsByContext = $fieldsBuilder->buildForAllContexts($this->getRequest()->getLocale());
+
+        return $this->render('rule-edit', [
             'rule' => [
                 'id' => $rule->getId(),
                 'name' => $rule->getName(),
-                'description' => $rule->getDescription(),
                 'context' => $context->value,
                 'context_label' => $context->label(),
-                'hooks' => $rule->getHookCodes(),
-                'condition_tree' => $rule->getConditionTree(),
                 'activate' => (bool) $rule->getActivate(),
             ],
+            'form' => $form->createView()->getView(),
+            'action_form' => $this->createForm(ActionForm::getName())->createView()->getView(),
             'actions' => $actions,
             'available_actions' => $availableActions,
             'contexts' => self::contextChoices(),
             'hook_choices' => $hookChoices,
-            'fields_by_context' => json_encode($fieldsByContext, \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR),
+            'fields_by_context' => $fieldsByContext,
+            'context_fields' => $fieldsByContext[$context->value] ?? [],
+            'editor_labels' => $editorLabels->build(),
         ]);
     }
 
@@ -195,9 +205,9 @@ class RuleController extends BaseAdminController
                 throw new \RuntimeException(sprintf('Rule #%d not found.', $ruleId));
             }
 
-            $data = $this->validateForm($form)->getData();
+            $data = $this->validateForm($form, 'POST')->getData();
             $context = $this->requireContext($data['context']);
-            $conditionTree = $this->parseConditionTree($data['condition_tree'] ?? null, $sqlBuilder, $context);
+            $conditionTree = $this->validateConditionTree($data['condition_tree'] ?? null, $sqlBuilder, $context);
 
             //Only hooks declared for the selected context are kept
             $postedHooks = $request->request->all('hooks');
@@ -213,6 +223,8 @@ class RuleController extends BaseAdminController
             $rule->save();
             $eventDispatcher->dispatch(new QueryBuilderRulesChangedEvent());
 
+            $this->addFlash('success', $this->trans('The rule has been saved.'));
+
             return $this->generateSuccessRedirect($form);
         } catch (FormValidationException $exception) {
             $errorMessage = $this->createStandardFormValidationErrorMessage($exception);
@@ -223,10 +235,7 @@ class RuleController extends BaseAdminController
             $errorMessage = $this->unexpectedErrorMessage();
         }
 
-        $form->setErrorMessage($errorMessage);
-        $parserContext->addForm($form)->setGeneralError($errorMessage);
-
-        return $this->generateErrorRedirect($form);
+        return $this->redirectWithError($form, $parserContext, $errorMessage);
     }
 
     #[Route('/rule/{ruleId}/toggle', name: 'rule_toggle', requirements: ['ruleId' => '\d+'], methods: 'POST')]
@@ -236,7 +245,7 @@ class RuleController extends BaseAdminController
         int $ruleId,
         EventDispatcherInterface $eventDispatcher,
     ): RedirectResponse {
-        $tokenProvider->checkToken($request->query->get('_token'));
+        $tokenProvider->checkToken((string) $request->query->get('_token'));
 
         $rule = QueryBuilderRuleQuery::create()->findOneById($ruleId);
 
@@ -245,7 +254,7 @@ class RuleController extends BaseAdminController
             $eventDispatcher->dispatch(new QueryBuilderRulesChangedEvent());
         }
 
-        return $this->generateRedirect(URL::getInstance()->absoluteUrl('/admin/query_builder'));
+        return $this->generateRedirect(URL::getInstance()->absoluteUrl(self::LIST_PATH));
     }
 
     #[Route('/rule/{ruleId}/delete', name: 'rule_delete', requirements: ['ruleId' => '\d+'], methods: 'POST')]
@@ -255,7 +264,7 @@ class RuleController extends BaseAdminController
         int $ruleId,
         EventDispatcherInterface $eventDispatcher,
     ): RedirectResponse {
-        $tokenProvider->checkToken($request->query->get('_token'));
+        $tokenProvider->checkToken((string) $request->query->get('_token'));
 
         $rule = QueryBuilderRuleQuery::create()->findOneById($ruleId);
 
@@ -264,13 +273,13 @@ class RuleController extends BaseAdminController
             $eventDispatcher->dispatch(new QueryBuilderRulesChangedEvent());
         }
 
-        return $this->generateRedirect(URL::getInstance()->absoluteUrl('/admin/query_builder'));
+        return $this->generateRedirect(URL::getInstance()->absoluteUrl(self::LIST_PATH));
     }
 
     /**
      * @return array<int, array{value: string, label: string, description: string}>
      */
-    private static function contextChoices(): array
+    public static function contextChoices(): array
     {
         return array_map(
             static fn (Context $case): array => [
@@ -282,13 +291,32 @@ class RuleController extends BaseAdminController
         );
     }
 
+    /**
+     * The rejected form is kept in the parser context (Thelia convention) and the
+     * message shown through the back-office flash block on the redirected page.
+     */
+    private function redirectWithError(BaseForm $form, ParserContext $parserContext, string $errorMessage): RedirectResponse|Response
+    {
+        $form->setErrorMessage($errorMessage);
+        $parserContext->addForm($form)->setGeneralError($errorMessage);
+        $this->addFlash('danger', $errorMessage);
+
+        return $this->generateErrorRedirect($form);
+    }
+
+    private function addFlash(string $type, string $message): void
+    {
+        $this->getRequest()->getSession()->getFlashBag()->add($type, $message);
+    }
+
+    private function trans(string $id): string
+    {
+        return Translator::getInstance()->trans($id, [], QueryBuilder::DOMAIN_NAME);
+    }
+
     private function unexpectedErrorMessage(): string
     {
-        return Translator::getInstance()->trans(
-            'An unexpected error occurred, please check the logs.',
-            [],
-            QueryBuilder::DOMAIN_NAME
-        );
+        return $this->trans('An unexpected error occurred, please check the logs.');
     }
 
     private function requireContext(?string $contextValue): Context
@@ -302,20 +330,15 @@ class RuleController extends BaseAdminController
         return $context;
     }
 
-    private function parseConditionTree(?string $rawTree, SqlBuilder $sqlBuilder, Context $context): ?array
+    /**
+     * The form type already refused any field or operator outside the dictionary;
+     * the context restriction of the fields is checked here, on the stored shape.
+     * A group emptied of its rules is "no condition".
+     */
+    private function validateConditionTree(?array $conditionTree, SqlBuilder $sqlBuilder, Context $context): ?array
     {
-        if ($rawTree === null || trim($rawTree) === '' || $rawTree === 'null') {
+        if ($conditionTree === null || ($conditionTree['rules'] ?? []) === []) {
             return null;
-        }
-
-        try {
-            $conditionTree = json_decode($rawTree, true, 512, \JSON_THROW_ON_ERROR);
-        } catch (\JsonException $exception) {
-            throw new \InvalidArgumentException(sprintf('Invalid condition tree JSON: %s.', $exception->getMessage()), 0, $exception);
-        }
-
-        if (!\is_array($conditionTree)) {
-            throw new \InvalidArgumentException('Invalid condition tree JSON.');
         }
 
         $sqlBuilder->validateTree($conditionTree, $context);
