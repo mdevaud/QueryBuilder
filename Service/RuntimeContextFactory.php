@@ -15,8 +15,8 @@ use Thelia\Model\Lang;
 
 /**
  * Builds the RuntimeContext of the current front visit (customer, cart,
- * locale) then lets the registered providers add their project-specific
- * placeholders.
+ * locale, cart total, delivery country) then lets the registered providers add
+ * their project-specific placeholders.
  */
 final readonly class RuntimeContextFactory
 {
@@ -24,6 +24,7 @@ final readonly class RuntimeContextFactory
     public function __construct(
         private RequestStack $requestStack,
         private EventDispatcherInterface $eventDispatcher,
+        private DeliveryCountryResolver $deliveryCountryResolver,
         #[AutowireIterator(RuntimeParameterProviderInterface::TAG)]
         private iterable $parameterProviders = [],
     ) {
@@ -38,23 +39,19 @@ final readonly class RuntimeContextFactory
         $session = $this->requestStack->getCurrentRequest()?->getSession();
         $customer = $session instanceof Session ? $session->getCustomerUser() : null;
         $cart = $session instanceof Session ? $session->getSessionCart($this->eventDispatcher) : null;
-
-        $cartProductIds = [];
-        if ($cart !== null) {
-            foreach ($cart->getCartItems() as $cartItem) {
-                $cartProductIds[] = (int) $cartItem->getProductId();
-            }
-        }
+        $country = $this->deliveryCountryResolver->resolve($cart);
 
         return $this->withProviderParameters(new RuntimeContext(
             customerId: $customer?->getId(),
             productId: $productId,
             cartId: $cart?->getId(),
-            cartProductIds: array_values(array_unique($cartProductIds)),
+            cartProductIds: $cart !== null ? $this->cartProductIds($cart) : [],
             orderId: $orderId,
             categoryId: $categoryId,
             brandId: $brandId,
             locale: $session instanceof Session ? ($session->getLang()?->getLocale() ?? 'fr_FR') : 'fr_FR',
+            cartTotal: $cart?->getTaxedAmount($country, false),
+            deliveryCountryId: (int) $country->getId(),
         ));
     }
 
@@ -64,19 +61,17 @@ final readonly class RuntimeContextFactory
      */
     public function forCart(Cart $cart): RuntimeContext
     {
-        $cartProductIds = [];
-        foreach ($cart->getCartItems() as $cartItem) {
-            $cartProductIds[] = (int) $cartItem->getProductId();
-        }
-
         $session = $this->requestStack->getCurrentRequest()?->getSession();
         $locale = $session instanceof Session ? $session->getLang()?->getLocale() : null;
+        $country = $this->deliveryCountryResolver->resolve($cart);
 
         return $this->withProviderParameters(new RuntimeContext(
             customerId: $cart->getCustomerId() !== null ? (int) $cart->getCustomerId() : null,
             cartId: $cart->getId() !== null ? (int) $cart->getId() : null,
-            cartProductIds: array_values(array_unique($cartProductIds)),
+            cartProductIds: $this->cartProductIds($cart),
             locale: $locale ?? Lang::getDefaultLanguage()->getLocale(),
+            cartTotal: $cart->getTaxedAmount($country, false),
+            deliveryCountryId: (int) $country->getId(),
         ));
     }
 
@@ -101,7 +96,20 @@ final readonly class RuntimeContextFactory
             categoryId: $baseContext->categoryId,
             brandId: $baseContext->brandId,
             locale: $baseContext->locale,
+            cartTotal: $baseContext->cartTotal,
+            deliveryCountryId: $baseContext->deliveryCountryId,
             parameters: array_merge($parameters, $baseContext->parameters),
         );
+    }
+
+    /** @return int[] */
+    private function cartProductIds(Cart $cart): array
+    {
+        $cartProductIds = [];
+        foreach ($cart->getCartItems() as $cartItem) {
+            $cartProductIds[] = (int) $cartItem->getProductId();
+        }
+
+        return array_values(array_unique($cartProductIds));
     }
 }

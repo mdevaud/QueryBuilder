@@ -45,7 +45,7 @@ final readonly class ApplyDiscountAction implements ActionInterface
 
     public static function getLabel(): string
     {
-        return 'Appliquer une remise';
+        return 'Apply a product discount';
     }
 
     public static function getSupportedContexts(): array

@@ -100,7 +100,7 @@ class ActionController extends BaseAdminController
         foreach ($actionRegistry->forContext($context) as $code => $actionHandler) {
             $availableActions[] = [
                 'code' => $code,
-                'label' => $actionHandler::getLabel(),
+                'label' => $this->trans($actionHandler::getLabel()),
                 'type' => $actionHandler::getType(),
             ];
         }
@@ -127,7 +127,7 @@ class ActionController extends BaseAdminController
                 'id' => $rule->getId(),
                 'name' => $rule->getName(),
                 'context' => $context->value,
-                'context_label' => $context->label(),
+                'context_label' => $this->trans($context->label()),
             ],
             'action' => [
                 'id' => $action->getId(),

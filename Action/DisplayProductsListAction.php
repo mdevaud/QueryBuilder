@@ -48,7 +48,7 @@ final readonly class DisplayProductsListAction implements ActionInterface
 
     public static function getLabel(): string
     {
-        return 'Afficher une liste de produits';
+        return 'Display a list of products';
     }
 
     public static function getSupportedContexts(): array

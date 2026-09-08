@@ -47,7 +47,7 @@ class RuleController extends BaseAdminController
 
         //A hook code stored by a rule but no longer declared (removed from the
         //dictionary) keeps its raw code as label: visible, never hidden
-        $hookLabels = $dataDictionary->getHooks(Context::GLOBAL_SCOPE);
+        $hookLabels = array_map($this->trans(...), $dataDictionary->getHooks(Context::GLOBAL_SCOPE));
 
         $rules = [];
         foreach (QueryBuilderRuleQuery::create()->orderByPosition()->orderById()->find() as $rule) {
@@ -56,7 +56,7 @@ class RuleController extends BaseAdminController
                 'name' => $rule->getName(),
                 'description' => $rule->getDescription(),
                 'context' => $rule->getContext(),
-                'context_label' => Context::tryFrom($rule->getContext() ?? '')?->label() ?? $rule->getContext(),
+                'context_label' => $this->trans(Context::tryFrom($rule->getContext() ?? '')?->label() ?? (string) $rule->getContext()),
                 'hooks' => array_map(
                     static fn (string $hookCode): array => [
                         'code' => $hookCode,
@@ -71,7 +71,7 @@ class RuleController extends BaseAdminController
 
         return $this->render('rule-list', [
             'rules' => $rules,
-            'contexts' => self::contextChoices(),
+            'contexts' => $this->contextChoices(),
             'create_form' => $this->createForm(RuleForm::getName())->createView()->getView(),
         ]);
     }
@@ -140,7 +140,7 @@ class RuleController extends BaseAdminController
         foreach ($actionRegistry->forContext($context) as $code => $actionHandler) {
             $availableActions[] = [
                 'code' => $code,
-                'label' => $actionHandler::getLabel(),
+                'label' => $this->trans($actionHandler::getLabel()),
                 'type' => $actionHandler::getType(),
             ];
         }
@@ -151,7 +151,7 @@ class RuleController extends BaseAdminController
                 $hookChoices[] = [
                     'context' => $contextCase->value,
                     'code' => $hookCode,
-                    'label' => $hookLabel,
+                    'label' => $this->trans($hookLabel),
                     'checked' => $contextCase === $context && \in_array($hookCode, $rule->getHookCodes(), true),
                 ];
             }
@@ -172,14 +172,14 @@ class RuleController extends BaseAdminController
                 'id' => $rule->getId(),
                 'name' => $rule->getName(),
                 'context' => $context->value,
-                'context_label' => $context->label(),
+                'context_label' => $this->trans($context->label()),
                 'activate' => (bool) $rule->getActivate(),
             ],
             'form' => $form->createView()->getView(),
             'action_form' => $this->createForm(ActionForm::getName())->createView()->getView(),
             'actions' => $actions,
             'available_actions' => $availableActions,
-            'contexts' => self::contextChoices(),
+            'contexts' => $this->contextChoices(),
             'hook_choices' => $hookChoices,
             'fields_by_context' => $fieldsByContext,
             'context_fields' => $fieldsByContext[$context->value] ?? [],
@@ -279,13 +279,13 @@ class RuleController extends BaseAdminController
     /**
      * @return array<int, array{value: string, label: string, description: string}>
      */
-    public static function contextChoices(): array
+    private function contextChoices(): array
     {
         return array_map(
-            static fn (Context $case): array => [
+            fn (Context $case): array => [
                 'value' => $case->value,
-                'label' => $case->label(),
-                'description' => $case->description(),
+                'label' => $this->trans($case->label()),
+                'description' => $this->trans($case->description()),
             ],
             Context::cases()
         );

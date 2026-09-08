@@ -7,7 +7,8 @@ namespace QueryBuilder\Dictionary;
 /**
  * Single source of truth for the operators allowed per field type, shared by
  * the back-office editor (FieldsBuilder) and the SQL generation (SqlBuilder whitelist).
- * Operator names follow the react-querybuilder convention.
+ * Operator names follow the react-querybuilder convention; their labels come from
+ * the query-builder-bundle editor.
  */
 final class Operators
 {
@@ -30,24 +31,6 @@ final class Operators
         ],
     ];
 
-    public const LABELS = [
-        '=' => '=',
-        '!=' => '≠',
-        '<' => '<',
-        '<=' => '≤',
-        '>' => '>',
-        '>=' => '≥',
-        'contains' => 'contient',
-        'doesNotContain' => 'ne contient pas',
-        'beginsWith' => 'commence par',
-        'endsWith' => 'finit par',
-        'between' => 'entre',
-        'notBetween' => 'pas entre',
-        'in' => 'parmi',
-        'notIn' => 'pas parmi',
-        'null' => 'est vide',
-        'notNull' => "n'est pas vide",
-    ];
 
     private function __construct()
     {

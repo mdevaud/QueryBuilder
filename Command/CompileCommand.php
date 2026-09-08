@@ -36,6 +36,8 @@ class CompileCommand extends ContainerAwareCommand
             ->addOption('product', null, InputOption::VALUE_REQUIRED, 'Product id for runtime placeholders')
             ->addOption('cart-products', null, InputOption::VALUE_REQUIRED, 'Comma-separated product ids of the cart')
             ->addOption('locale', null, InputOption::VALUE_REQUIRED, 'Locale', 'fr_FR')
+            ->addOption('cart-total', null, InputOption::VALUE_REQUIRED, 'Cart products total, taxes included (:cart_total)')
+            ->addOption('delivery-country', null, InputOption::VALUE_REQUIRED, 'Delivery country id (:delivery_country_id)')
             ->addOption('limit', null, InputOption::VALUE_REQUIRED, 'LIMIT applied to the query')
             ->addOption('execute', null, InputOption::VALUE_NONE, 'Execute the query and print the product ids');
     }
@@ -65,6 +67,8 @@ class CompileCommand extends ContainerAwareCommand
                 ? array_map('intval', explode(',', $cartProducts))
                 : [],
             locale: (string) $input->getOption('locale'),
+            cartTotal: $input->getOption('cart-total') !== null ? (float) $input->getOption('cart-total') : null,
+            deliveryCountryId: $input->getOption('delivery-country') !== null ? (int) $input->getOption('delivery-country') : null,
         ));
 
         $limit = $input->getOption('limit') !== null ? (int) $input->getOption('limit') : null;

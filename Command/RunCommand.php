@@ -35,7 +35,9 @@ class RunCommand extends ContainerAwareCommand
             ->addOption('customer', null, InputOption::VALUE_REQUIRED, 'Customer id')
             ->addOption('product', null, InputOption::VALUE_REQUIRED, 'Product id')
             ->addOption('cart-products', null, InputOption::VALUE_REQUIRED, 'Comma-separated product ids of the cart')
-            ->addOption('locale', null, InputOption::VALUE_REQUIRED, 'Locale', 'fr_FR');
+            ->addOption('locale', null, InputOption::VALUE_REQUIRED, 'Locale', 'fr_FR')
+            ->addOption('cart-total', null, InputOption::VALUE_REQUIRED, 'Cart products total, taxes included (:cart_total)')
+            ->addOption('delivery-country', null, InputOption::VALUE_REQUIRED, 'Delivery country id (:delivery_country_id)');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -49,6 +51,8 @@ class RunCommand extends ContainerAwareCommand
                 ? array_map('intval', explode(',', $cartProducts))
                 : [],
             locale: (string) $input->getOption('locale'),
+            cartTotal: $input->getOption('cart-total') !== null ? (float) $input->getOption('cart-total') : null,
+            deliveryCountryId: $input->getOption('delivery-country') !== null ? (int) $input->getOption('delivery-country') : null,
         ));
 
         $executedActions = $this->ruleEngine->executeHook((string) $input->getArgument('hook'), $runtimeContext);

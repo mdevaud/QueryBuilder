@@ -25,6 +25,10 @@ final readonly class RuntimeContext
         public ?int $categoryId = null,
         public ?int $brandId = null,
         public string $locale = 'fr_FR',
+        //Products total of the cart, taxes included, shipping and discounts excluded
+        public ?float $cartTotal = null,
+        //Country the cart ships to (cart delivery address, else the shop default country)
+        public ?int $deliveryCountryId = null,
         public array $parameters = [],
     ) {
     }
@@ -42,6 +46,8 @@ final readonly class RuntimeContext
                 'category_id' => $this->categoryId,
                 'brand_id' => $this->brandId,
                 'locale' => $this->locale,
+                'cart_total' => $this->cartTotal,
+                'delivery_country_id' => $this->deliveryCountryId,
             ],
             $this->parameters
         );

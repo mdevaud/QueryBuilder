@@ -8,6 +8,8 @@ use Propel\Runtime\Propel;
 use QueryBuilder\Dictionary\FieldDefinition;
 use QueryBuilder\Dictionary\Operators;
 use QueryBuilder\Enum\Context;
+use QueryBuilder\QueryBuilder;
+use Thelia\Core\Translation\Translator;
 use Thelia\Log\Tlog;
 
 /**
@@ -80,7 +82,7 @@ final readonly class FieldsBuilder
         return [
             'name' => $field->code,
             'type' => self::VALUE_TYPES[$field->type] ?? 'text',
-            'label' => $field->label,
+            'label' => Translator::getInstance()->trans($field->label, [], QueryBuilder::DOMAIN_NAME),
             'labelInformation' => null,
             'values' => $values,
             'operators' => $operators,

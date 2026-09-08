@@ -27,6 +27,7 @@ interface ActionInterface
 
     public static function getType(): string;
 
+    /** Translation key (querybuilder domain) of the label shown in the back-office. */
     public static function getLabel(): string;
 
     /** @return Context[] empty = available in every context */

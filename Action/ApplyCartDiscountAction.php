@@ -42,7 +42,7 @@ final readonly class ApplyCartDiscountAction implements ActionInterface
 
     public static function getLabel(): string
     {
-        return 'Remise globale panier';
+        return 'Global cart discount';
     }
 
     public static function getSupportedContexts(): array
