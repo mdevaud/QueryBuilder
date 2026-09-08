@@ -257,11 +257,6 @@ class ActionController extends BaseAdminController
         return $this->generateErrorRedirect($form);
     }
 
-    private function addFlash(string $type, string $message): void
-    {
-        $this->getRequest()->getSession()->getFlashBag()->add($type, $message);
-    }
-
     private function trans(string $id): string
     {
         return Translator::getInstance()->trans($id, [], QueryBuilder::DOMAIN_NAME);
