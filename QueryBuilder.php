@@ -62,6 +62,7 @@ class QueryBuilder extends BaseModule
                 __DIR__ . '/I18n/*',
                 __DIR__ . '/Config/**/*',
                 __DIR__ . '/templates/**/*',
+                __DIR__ . '/tests/*',
                 __DIR__ . '/QueryBuilder.php',
             ])
             ->autowire(true)

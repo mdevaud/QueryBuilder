@@ -4,14 +4,11 @@ declare(strict_types=1);
 
 namespace QueryBuilder\Service;
 
-use Propel\Runtime\ActiveQuery\Criteria;
+use QueryBuilder\Dictionary\DictionaryOverrideLocatorInterface;
 use QueryBuilder\Dictionary\FieldDefinition;
 use QueryBuilder\Dictionary\JoinDefinition;
 use QueryBuilder\Enum\Context;
-use QueryBuilder\QueryBuilder;
 use Symfony\Component\Yaml\Yaml;
-use Thelia\Model\ModuleQuery;
-use Thelia\Module\BaseModule;
 
 /**
  * Loads the base data dictionary shipped with this module then merges the
@@ -22,6 +19,12 @@ final class DataDictionary
     public const DICTIONARY_FILENAME = 'query_builder.yml';
 
     private ?array $dictionary = null;
+
+    public function __construct(
+        private readonly DictionaryOverrideLocatorInterface $overrideLocator,
+        private readonly string $baseFile = __DIR__ . '/../Config/' . self::DICTIONARY_FILENAME,
+    ) {
+    }
 
     /** @return array<string, JoinDefinition> keyed by joined table name */
     public function getJoins(): array
@@ -88,9 +91,9 @@ final class DataDictionary
             return $this->dictionary;
         }
 
-        $raw = $this->loadFile(__DIR__ . '/../Config/' . self::DICTIONARY_FILENAME);
+        $raw = $this->loadFile($this->baseFile);
 
-        foreach ($this->getOverrideFiles() as $file) {
+        foreach ($this->overrideLocator->locate() as $file) {
             $override = $this->loadFile($file);
 
             $raw['joins'] = array_replace($raw['joins'], $override['joins']);
@@ -113,29 +116,6 @@ final class DataDictionary
             'fields' => $this->buildFields($raw['fields']),
             'contexts' => $raw['contexts'],
         ];
-    }
-
-    /** @return string[] */
-    private function getOverrideFiles(): array
-    {
-        $files = [];
-
-        $modules = ModuleQuery::create()
-            ->filterByActivate(BaseModule::IS_ACTIVATED)
-            ->filterByCode(QueryBuilder::getModuleCode(), Criteria::NOT_EQUAL)
-            ->orderByPosition()
-            ->find();
-
-        foreach ($modules as $module) {
-            //A Thelia 3 module lives either in local/modules or in vendor/thelia/modules (Composer)
-            $file = $module->getAbsoluteBaseDir() . DS . 'Config' . DS . self::DICTIONARY_FILENAME;
-
-            if (is_file($file)) {
-                $files[] = $file;
-            }
-        }
-
-        return $files;
     }
 
     private function loadFile(string $path): array

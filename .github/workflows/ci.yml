@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  tests:
+    name: Tests on a fresh Thelia 3 shop (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        php: [ '8.3', '8.4' ]
+    env:
+      SHOP_DIR: ${{ github.workspace }}/shop
+    steps:
+      - name: Checkout the module
+        uses: actions/checkout@v4
+        with:
+          path: module
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          ini-values: post_max_size=20M
+          extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, mysql, gd, zip
+
+      - name: Validate the module composer manifest
+        run: composer validate --strict --no-check-publish
+        working-directory: module
+
+      - name: Create a fresh shop
+        run: composer create-project thelia/thelia-project "$SHOP_DIR" --no-interaction --prefer-dist --no-progress
+
+      - name: Require the query-builder-bundle
+        # The bundle is not on Packagist yet: the 1.1.0 release branch is aliased to the
+        # version the module requires. Drop this step once 1.1.0 is published.
+        working-directory: ${{ env.SHOP_DIR }}
+        run: |
+          composer config repositories.query-builder-bundle vcs https://github.com/openstudio-fr/query-builder-bundle
+          composer require "openstudio/query-builder-bundle:dev-release/1.1.0 as 1.1.0" --no-interaction --no-progress
+
+      - name: Install the module from the checkout
+        working-directory: ${{ env.SHOP_DIR }}
+        run: |
+          composer config repositories.query-builder-module path "$GITHUB_WORKSPACE/module"
+          composer require "thelia/query-builder-module:@dev" --no-interaction --no-progress
+          composer require --dev "phpunit/phpunit:^11.5" --no-interaction --no-progress
+
+      - name: Unit tests
+        # The module is symlinked into the shop: the bootstrap gets the shop autoloader explicitly.
+        working-directory: ${{ env.SHOP_DIR }}
+        env:
+          THELIA_VENDOR_AUTOLOAD: ${{ env.SHOP_DIR }}/vendor/autoload.php
+        run: php vendor/bin/phpunit -c "$GITHUB_WORKSPACE/module/phpunit.xml.dist" --testsuite unit
+
+      - name: Start MySQL
+        # The runner ships MySQL pre-installed (root/root on 127.0.0.1:3306).
+        run: sudo systemctl start mysql.service
+
+      - name: Install the shop database
+        working-directory: ${{ env.SHOP_DIR }}
+        run: |
+          printf 'APP_ENV=dev\nAPP_SECRET=%s\nDATABASE_HOST=127.0.0.1\nDATABASE_PORT=3306\nDATABASE_USER=root\nDATABASE_PASSWORD=root\nDATABASE_NAME=thelia\n' "$(openssl rand -hex 16)" > .env.local
+          printf 'DATABASE_HOST=127.0.0.1\nDATABASE_PORT=3306\nDATABASE_USER=root\nDATABASE_PASSWORD=root\nDATABASE_NAME=thelia\n' > .env.test.local
+          php bin/install --frontoffice_theme=flexy --backoffice_theme=default-twig --pdf_theme=default --email_theme=default --with-demo --with-admin --admin_login=thelia --admin_password=thelia --admin_first_name=thelia --admin_last_name=thelia --admin_email=thelia@example.com
+          php bin/test-prepare
+
+      - name: Activate the module
+        working-directory: ${{ env.SHOP_DIR }}
+        run: |
+          php Thelia module:activate QueryBuilder
+          APP_ENV=test php Thelia module:activate QueryBuilder
+
+      - name: Integration tests
+        working-directory: ${{ env.SHOP_DIR }}
+        env:
+          THELIA_VENDOR_AUTOLOAD: ${{ env.SHOP_DIR }}/vendor/autoload.php
+        run: php vendor/bin/phpunit -c "$GITHUB_WORKSPACE/module/phpunit.xml.dist" --testsuite integration

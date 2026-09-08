@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace QueryBuilder\EventListener;
 
 use QueryBuilder\Service\CartDiscountCalculator;
+use QueryBuilder\Service\CartDiscountLedger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
@@ -30,11 +31,8 @@ use Thelia\Model\Event\AddressEvent;
  * coupon consume/clear handlers do the same absolute write at priority 128
  * on COUPON_CONSUME / COUPON_CLEAR_ALL, hence our subscription there too). But
  * cart events may NEST (a listener re-dispatching CART_ADDITEM while handling
- * one), so the current value may still CONTAIN our own previous addition. The
- * listener therefore tracks, per cart, the exact total it wrote: when the
- * current value is still that total, nothing reset the column since our last
- * pass and our part is subtracted before re-adding; any other value means an
- * upstream reset (absolute write) already dropped it.
+ * one), so the current value may still CONTAIN our own previous addition:
+ * CartDiscountLedger tracks what this request wrote and never adds it twice.
  *
  * Free shipping follows the coupon path of the core: CART_SET_POSTAGE at
  * priority 133, right before the core coupon check (132) and the core postage
@@ -42,18 +40,13 @@ use Thelia\Model\Event\AddressEvent;
  * like Coupon::forceFreePostage. The legacy ORDER_SET_POSTAGE point is kept for
  * a Smarty front still going through the order session.
  */
-final class CartDiscountListener implements EventSubscriberInterface
+final readonly class CartDiscountListener implements EventSubscriberInterface
 {
-    /** @var array<int, float> rule discount amount applied by this request, by cart id */
-    private array $appliedAmountByCartId = [];
-
-    /** @var array<int, float> total discount written by this request, by cart id */
-    private array $writtenTotalByCartId = [];
-
     public function __construct(
-        private readonly RequestStack $requestStack,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly CartDiscountCalculator $cartDiscountCalculator,
+        private RequestStack $requestStack,
+        private EventDispatcherInterface $eventDispatcher,
+        private CartDiscountCalculator $cartDiscountCalculator,
+        private CartDiscountLedger $cartDiscountLedger,
     ) {
     }
 
@@ -99,25 +92,15 @@ final class CartDiscountListener implements EventSubscriberInterface
                 return;
             }
 
-            $cartId = (int) $cart->getId();
-            $currentDiscount = (float) $cart->getDiscount();
-
-            //Notre passage précédent est-il encore dans la colonne ? (cf. docblock)
-            $baseDiscount = $currentDiscount;
-            if (isset($this->writtenTotalByCartId[$cartId])
-                && abs($currentDiscount - $this->writtenTotalByCartId[$cartId]) < 0.001
-            ) {
-                $baseDiscount = max(0.0, $currentDiscount - $this->appliedAmountByCartId[$cartId]);
-            }
-
-            $totalDiscount = $baseDiscount + $ruleDiscountAmount;
+            $totalDiscount = $this->cartDiscountLedger->nextTotal(
+                (int) $cart->getId(),
+                (float) $cart->getDiscount(),
+                $ruleDiscountAmount
+            );
 
             //Propel decimal columns are typed string under Thelia 3
             $cart->setDiscount((string) $totalDiscount)->save();
             $session->getOrder()?->setDiscount((string) $totalDiscount);
-
-            $this->appliedAmountByCartId[$cartId] = $ruleDiscountAmount;
-            $this->writtenTotalByCartId[$cartId] = $totalDiscount;
         } catch (\Throwable $throwable) {
             //Ne jamais bloquer le panier pour une remise
             Tlog::getInstance()->addError('QueryBuilder: cart discount not applied: ' . $throwable->getMessage());
