@@ -34,4 +34,4 @@ Port of the module to Thelia 3. The Thelia 2 line (1.0.0 to 1.2.0) lived in the 
 - The `/query_builder/products/{hookCode}` Symfony route, replaced by the API Platform resource.
 - The `product.top` and `product.bottom` `BaseHook` front hooks, replaced by the theme hook implementation.
 
-[Unreleased]: https://github.com/thelia-modules/QueryBuilder/commits/main
+[Unreleased]: https://github.com/thelia-modules/QueryBuilder/tree/release/2.0.0
