@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace QueryBuilder\EventListener;
 
-use QueryBuilder\Query\RuntimeContext;
-use QueryBuilder\Service\CartDiscountResolutionService;
-use QueryBuilder\Service\RuntimeContextFactory;
+use QueryBuilder\Service\CartDiscountCalculator;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\EventDispatcher\Event;
+use Thelia\Core\Event\Cart\CartCheckoutEvent;
 use Thelia\Core\Event\Cart\CartEvent;
 use Thelia\Core\Event\Order\OrderEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\HttpFoundation\Session\Session;
 use Thelia\Log\Tlog;
-use Thelia\Model\AddressQuery;
 use Thelia\Model\Cart;
-use Thelia\Model\Country;
 use Thelia\Model\Event\AddressEvent;
 
 /**
@@ -31,16 +29,18 @@ use Thelia\Model\Event\AddressEvent;
  * an absolute value at priority 10 on these same events, we run at 1; the
  * coupon consume/clear handlers do the same absolute write at priority 128
  * on COUPON_CONSUME / COUPON_CLEAR_ALL, hence our subscription there too). But
- * cart events NEST on this project (listeners re-dispatch CART_ADDITEM while
- * handling one, e.g. fee lines), so the current value may still CONTAIN our
- * own previous addition. The listener therefore tracks, per cart, the exact
- * total it wrote: when the current value is still that total, nothing reset
- * the column since our last pass and our part is subtracted before re-adding;
- * any other value means an upstream reset (absolute write) already dropped it.
+ * cart events may NEST (a listener re-dispatching CART_ADDITEM while handling
+ * one), so the current value may still CONTAIN our own previous addition. The
+ * listener therefore tracks, per cart, the exact total it wrote: when the
+ * current value is still that total, nothing reset the column since our last
+ * pass and our part is subtracted before re-adding; any other value means an
+ * upstream reset (absolute write) already dropped it.
  *
- * Free shipping goes through ORDER_SET_POSTAGE at priority 133: right before
- * the core coupon free-postage check (132) and the core postage setter (128),
- * with stopPropagation, same pattern as the core.
+ * Free shipping follows the coupon path of the core: CART_SET_POSTAGE at
+ * priority 133, right before the core coupon check (132) and the core postage
+ * setter (128), clearing the cart postage and stopping the propagation exactly
+ * like Coupon::forceFreePostage. The legacy ORDER_SET_POSTAGE point is kept for
+ * a Smarty front still going through the order session.
  */
 final class CartDiscountListener implements EventSubscriberInterface
 {
@@ -52,8 +52,8 @@ final class CartDiscountListener implements EventSubscriberInterface
 
     public function __construct(
         private readonly RequestStack $requestStack,
-        private readonly RuntimeContextFactory $runtimeContextFactory,
-        private readonly CartDiscountResolutionService $cartDiscountResolutionService,
+        private readonly EventDispatcherInterface $eventDispatcher,
+        private readonly CartDiscountCalculator $cartDiscountCalculator,
     ) {
     }
 
@@ -67,7 +67,8 @@ final class CartDiscountListener implements EventSubscriberInterface
             TheliaEvents::COUPON_CONSUME => ['updateCartDiscount', 1],
             TheliaEvents::COUPON_CLEAR_ALL => ['updateCartDiscount', 1],
             AddressEvent::POST_UPDATE => ['updateCartDiscount', 1],
-            TheliaEvents::ORDER_SET_POSTAGE => ['removePostageWhenFreeShipping', 133],
+            TheliaEvents::CART_SET_POSTAGE => ['removeCartPostageWhenFreeShipping', 133],
+            TheliaEvents::ORDER_SET_POSTAGE => ['removeOrderPostageWhenFreeShipping', 133],
         ];
     }
 
@@ -83,24 +84,18 @@ final class CartDiscountListener implements EventSubscriberInterface
             //Sur les événements panier le cart est porté par l'événement ; sinon
             //(login, adresse) le core vient de résoudre le panier de session à
             //prio 10, le relire ici est sans risque de boucle de restauration
+            //Thelia 3: the session needs the dispatcher to restore or create the cart
             $cart = $event instanceof CartEvent
                 ? $event->getCart()
-                : $session->getSessionCart();
+                : $session->getSessionCart($this->eventDispatcher);
 
-            if ($cart === null) {
+            if (!$cart instanceof Cart) {
                 return;
             }
 
-            $cartDiscount = $this->cartDiscountResolutionService->getCartDiscount($this->buildContext($cart, $session));
+            $ruleDiscountAmount = $this->cartDiscountCalculator->resolve($cart)?->amount;
 
-            if ($cartDiscount?->rate === null) {
-                return;
-            }
-
-            $productsTotal = $cart->getTaxedAmount($this->resolveDeliveryCountry($session), false);
-            $ruleDiscountAmount = round($productsTotal * $cartDiscount->rate / 100, 2);
-
-            if ($ruleDiscountAmount <= 0) {
+            if ($ruleDiscountAmount === null || $ruleDiscountAmount <= 0) {
                 return;
             }
 
@@ -129,24 +124,37 @@ final class CartDiscountListener implements EventSubscriberInterface
         }
     }
 
-    public function removePostageWhenFreeShipping(OrderEvent $event): void
+    /** Thelia 3 checkout: the postage is computed on the cart (Flexy, API). */
+    public function removeCartPostageWhenFreeShipping(CartCheckoutEvent $event): void
+    {
+        try {
+            $cart = $event->getCart();
+
+            if (!$this->cartDiscountCalculator->resolve($cart)?->freeShipping) {
+                return;
+            }
+
+            //Same write as Coupon::forceFreePostage: a cleared postage is a free delivery
+            $cart
+                ->setPostage(null)
+                ->setPostageTax(null)
+                ->setPostageTaxRuleTitle(null)
+                ->save();
+            $event->stopPropagation();
+        } catch (\Throwable $throwable) {
+            //Ne jamais bloquer la commande pour des frais de port offerts
+            Tlog::getInstance()->addError('QueryBuilder: free shipping rule not applied on the cart: ' . $throwable->getMessage());
+        }
+    }
+
+    /** Legacy checkout: the postage is set on the order carried by the session. */
+    public function removeOrderPostageWhenFreeShipping(OrderEvent $event): void
     {
         try {
             $session = $this->getStartedSession();
+            $cart = $session?->getSessionCart($this->eventDispatcher);
 
-            if ($session === null) {
-                return;
-            }
-
-            $cart = $session->getSessionCart();
-
-            if ($cart === null) {
-                return;
-            }
-
-            $cartDiscount = $this->cartDiscountResolutionService->getCartDiscount($this->buildContext($cart, $session));
-
-            if ($cartDiscount === null || !$cartDiscount->freeShipping) {
+            if (!$cart instanceof Cart || !$this->cartDiscountCalculator->resolve($cart)?->freeShipping) {
                 return;
             }
 
@@ -155,8 +163,7 @@ final class CartDiscountListener implements EventSubscriberInterface
             $event->setOrder($order);
             $event->stopPropagation();
         } catch (\Throwable $throwable) {
-            //Ne jamais bloquer la commande pour des frais de port offerts
-            Tlog::getInstance()->addError('QueryBuilder: free shipping rule not applied: ' . $throwable->getMessage());
+            Tlog::getInstance()->addError('QueryBuilder: free shipping rule not applied on the order: ' . $throwable->getMessage());
         }
     }
 
@@ -165,35 +172,5 @@ final class CartDiscountListener implements EventSubscriberInterface
         $session = $this->requestStack->getCurrentRequest()?->getSession();
 
         return $session instanceof Session && $session->isStarted() ? $session : null;
-    }
-
-    private function buildContext(Cart $cart, Session $session): RuntimeContext
-    {
-        $cartProductIds = [];
-        foreach ($cart->getCartItems() as $cartItem) {
-            $cartProductIds[] = (int) $cartItem->getProductId();
-        }
-
-        return $this->runtimeContextFactory->withProviderParameters(new RuntimeContext(
-            customerId: $cart->getCustomerId() !== null ? (int) $cart->getCustomerId() : null,
-            cartId: (int) $cart->getId(),
-            cartProductIds: array_values(array_unique($cartProductIds)),
-            locale: $session->getLang()?->getLocale() ?? 'fr_FR',
-        ));
-    }
-
-    private function resolveDeliveryCountry(Session $session): Country
-    {
-        $deliveryAddressId = $session->getOrder()?->getChoosenDeliveryAddress();
-
-        if ($deliveryAddressId) {
-            $country = AddressQuery::create()->findPk($deliveryAddressId)?->getCountry();
-
-            if ($country !== null) {
-                return $country;
-            }
-        }
-
-        return Country::getDefaultCountry();
     }
 }

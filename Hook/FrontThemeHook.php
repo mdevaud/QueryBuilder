@@ -6,7 +6,7 @@ namespace QueryBuilder\Hook;
 
 use QueryBuilder\Service\DataDictionary;
 use QueryBuilder\Service\HookResultPresenter;
-use QueryBuilder\Service\ProductListRenderer;
+use QueryBuilder\Service\FrontTemplateRenderer;
 use QueryBuilder\Service\RuntimeContextFactory;
 use Thelia\Core\Hook\Theme\ThemeHookInterface;
 
@@ -24,7 +24,7 @@ final readonly class FrontThemeHook implements ThemeHookInterface
         private DataDictionary $dataDictionary,
         private HookResultPresenter $hookResultPresenter,
         private RuntimeContextFactory $runtimeContextFactory,
-        private ProductListRenderer $productListRenderer,
+        private FrontTemplateRenderer $frontTemplateRenderer,
     ) {
     }
 
@@ -53,12 +53,12 @@ final readonly class FrontThemeHook implements ThemeHookInterface
                 continue;
             }
 
-            $html .= $this->productListRenderer->render(
-                $hookName,
-                (string) $action['rule'],
-                (string) $action['action'],
-                $action['product_ids']
-            );
+            $html .= $this->frontTemplateRenderer->render('product-list.html.twig', [
+                'hook' => $hookName,
+                'rule_name' => (string) $action['rule'],
+                'action_name' => (string) $action['action'],
+                'product_ids' => array_values(array_map('intval', $action['product_ids'])),
+            ]);
         }
 
         return $html;

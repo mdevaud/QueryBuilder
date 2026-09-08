@@ -10,6 +10,8 @@ use Symfony\Component\DependencyInjection\Attribute\AutowireIterator;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Thelia\Core\HttpFoundation\Session\Session;
+use Thelia\Model\Cart;
+use Thelia\Model\Lang;
 
 /**
  * Builds the RuntimeContext of the current front visit (customer, cart,
@@ -53,6 +55,28 @@ final readonly class RuntimeContextFactory
             categoryId: $categoryId,
             brandId: $brandId,
             locale: $session instanceof Session ? ($session->getLang()?->getLocale() ?? 'fr_FR') : 'fr_FR',
+        ));
+    }
+
+    /**
+     * Context of a given cart (cart events, API cart reads): the customer is the
+     * cart owner, not the session user, so a listener stays right when the two differ.
+     */
+    public function forCart(Cart $cart): RuntimeContext
+    {
+        $cartProductIds = [];
+        foreach ($cart->getCartItems() as $cartItem) {
+            $cartProductIds[] = (int) $cartItem->getProductId();
+        }
+
+        $session = $this->requestStack->getCurrentRequest()?->getSession();
+        $locale = $session instanceof Session ? $session->getLang()?->getLocale() : null;
+
+        return $this->withProviderParameters(new RuntimeContext(
+            customerId: $cart->getCustomerId() !== null ? (int) $cart->getCustomerId() : null,
+            cartId: $cart->getId() !== null ? (int) $cart->getId() : null,
+            cartProductIds: array_values(array_unique($cartProductIds)),
+            locale: $locale ?? Lang::getDefaultLanguage()->getLocale(),
         ));
     }
 

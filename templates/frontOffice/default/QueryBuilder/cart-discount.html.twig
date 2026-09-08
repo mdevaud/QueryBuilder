@@ -1,0 +1,17 @@
+{# Cart discount granted by a QueryBuilder rule, rendered once on the checkout
+   pages (checkout.top, cart.bottom). Texts are translated by the module; the
+   amount is formatted with twig/intl-extra, shipped with Flexy. A theme overrides
+   this file at templates/frontOffice/<theme>/modules/QueryBuilder/cart-discount.html.twig
+   (variables: hook, label, rate, amount, free_shipping, currency_code, locale, texts). #}
+<div class="QueryBuilderCartDiscount mb-4 rounded border border-success bg-success/10 p-4 text-sm" data-hook="{{ hook }}">
+    {% if amount %}
+        <p class="QueryBuilderCartDiscount-amount">
+            <strong>{{ label ?: texts.discount }}</strong> :
+            &minus;{{ currency_code ? amount|format_currency(currency_code, locale: locale) : amount }}
+            <span class="text-black/60">({{ texts.rate_off }})</span>
+        </p>
+    {% endif %}
+    {% if free_shipping %}
+        <p class="QueryBuilderCartDiscount-shipping">{{ label and not amount ? label ~ ' : ' : '' }}{{ texts.free_shipping }}</p>
+    {% endif %}
+</div>

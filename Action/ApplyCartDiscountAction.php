@@ -20,7 +20,8 @@ use QueryBuilder\Query\RuntimeContext;
  * The discount goes through the core Thelia discount channel (cart.discount /
  * order.discount) — NOT through the coupon machinery. Unlike display actions,
  * this action is not driven by hooks: CartDiscountListener applies it on the
- * cart events and on ORDER_SET_POSTAGE, via CartDiscountResolutionService.
+ * cart events and on CART_SET_POSTAGE, via CartDiscountCalculator; the label
+ * is exposed by the QueryBuilderCartDiscount API addon and the checkout theme hook.
  * The action condition tree is therefore irrelevant here (the discount has no
  * product target); eligibility is the RULE condition tree. execute() is a
  * no-op on hook execution.
