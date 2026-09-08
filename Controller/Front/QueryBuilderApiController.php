@@ -17,7 +17,7 @@ use Thelia\Core\HttpFoundation\Request;
  * hook declared in the dictionary, not rendered by Smarty — and returns
  * the product ids selected by their display actions.
  *
- * Same payload as the {queryBuilderProducts} Smarty plugin (HookResultPresenter).
+ * Same payload as the query_builder_products() Twig function (HookResultPresenter).
  */
 #[Route('/query_builder', name: 'query_builder_front_')]
 class QueryBuilderApiController extends BaseFrontController

@@ -62,8 +62,6 @@ class QueryBuilder extends BaseModule
                 __DIR__ . '/I18n/*',
                 __DIR__ . '/Config/**/*',
                 __DIR__ . '/templates/**/*',
-                //Smarty plugin of the Thelia 2 line, replaced by a Twig extension (front chantier)
-                __DIR__ . '/Smarty/*',
                 __DIR__ . '/QueryBuilder.php',
             ])
             ->autowire(true)

@@ -10,8 +10,8 @@ use QueryBuilder\Query\RuntimeContext;
 
 /**
  * Executes the display rules of a hook and shapes the result in the structure
- * shared by the JSON endpoint (/query_builder/products/{hookCode}) and the
- * {queryBuilderProducts} Smarty plugin. The offers come from the stateless
+ * shared by the JSON endpoint (/query_builder/products/{hookCode}), the
+ * query_builder_products() Twig function and the theme hooks. The offers come from the stateless
  * ApplyDiscount rules (DiscountResolutionService), resolved on the returned
  * products so the front can render its badges.
  */
