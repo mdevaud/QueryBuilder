@@ -63,6 +63,8 @@ class QueryBuilder extends BaseModule
                 __DIR__ . '/Config/**/*',
                 __DIR__ . '/templates/**/*',
                 __DIR__ . '/tests/*',
+                // Dev dependencies of a checkout linked into a shop: not module classes.
+                __DIR__ . '/vendor/',
                 __DIR__ . '/QueryBuilder.php',
             ])
             ->autowire(true)

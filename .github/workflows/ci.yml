@@ -36,14 +36,6 @@ jobs:
       - name: Create a fresh shop
         run: composer create-project thelia/thelia-project "$SHOP_DIR" --no-interaction --prefer-dist --no-progress
 
-      - name: Require the query-builder-bundle
-        # The bundle is not on Packagist yet: the 1.1.0 release branch is aliased to the
-        # version the module requires. Drop this step once 1.1.0 is published.
-        working-directory: ${{ env.SHOP_DIR }}
-        run: |
-          composer config repositories.query-builder-bundle vcs https://github.com/openstudio-fr/query-builder-bundle
-          composer require "openstudio/query-builder-bundle:dev-release/1.1.0 as 1.1.0" --no-interaction --no-progress
-
       - name: Install the module from the checkout
         working-directory: ${{ env.SHOP_DIR }}
         run: |

@@ -18,13 +18,6 @@ php Thelia module:activate QueryBuilder
 php bin/console cache:clear
 ```
 
-Until version 1.1.0 of the bundle is published on Packagist, tell Composer where to find it first:
-
-```bash
-composer config repositories.query-builder-bundle vcs https://github.com/openstudio-fr/query-builder-bundle
-composer require "openstudio/query-builder-bundle:dev-release/1.1.0 as 1.1.0"
-```
-
 Symfony Flex registers the bundle in `config/bundles.php`. If the condition editor stays empty in the back-office, check that the file contains `OpenStudio\QueryBuilderBundle\OpenStudioQueryBuilderBundle::class => ['all' => true]`.
 
 The activation creates the tables `query_builder_rule`, `query_builder_action` and `query_builder_suggestion`, and adds a "Query Builder" entry to the Tools menu.
@@ -175,11 +168,14 @@ php Thelia module:activate QueryBuilder
 php vendor/bin/phpunit -c vendor/thelia/modules/QueryBuilder/phpunit.xml.dist --testsuite integration
 ```
 
-The unit suite also runs outside a shop, against the vendor of a Thelia checkout:
+The unit suite also runs from the module checkout alone, once its dev dependencies are installed (`thelia/core`, the bundle, PHPUnit):
 
 ```bash
-THELIA_VENDOR_AUTOLOAD=/path/to/thelia/vendor/autoload.php php phpunit.phar -c phpunit.xml.dist --testsuite unit
+composer install
+php vendor/bin/phpunit -c phpunit.xml.dist --testsuite unit
 ```
+
+`THELIA_VENDOR_AUTOLOAD=/path/to/vendor/autoload.php` points the test bootstrap at another vendor. A checkout linked into a shop by symlink (Composer `path` repository) needs it set to the shop vendor for the integration suite, otherwise its own vendor is picked.
 
 `.github/workflows/ci.yml` installs a fresh `thelia/thelia-project` shop, requires the module from the checkout and runs both suites.
 

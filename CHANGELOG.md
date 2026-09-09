@@ -21,6 +21,7 @@ Port of the module to Thelia 3. The Thelia 2 line (1.0.0 to 1.2.0) lived in the 
 - Flexy hook codes declared per context in the base dictionary.
 - English and French translations of every label (`querybuilder` and `querybuilder.bo.default-twig` domains).
 - Unit tests (SQL compiler, dictionary, discount arithmetic), a module activation integration test and a GitHub Actions workflow running them on a fresh shop.
+- `composer install` at the module root installs the dev dependencies (`thelia/core`, PHPUnit) for the unit suite and static analysis; the module `vendor/` directory is excluded from the service discovery so a checkout linked into a shop keeps booting it.
 
 ### Changed
 - Requires PHP 8.3, Thelia 3 and `openstudio/query-builder-bundle` ^1.1.
