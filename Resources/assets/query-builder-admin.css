@@ -286,6 +286,11 @@
     width: 240px;
 }
 
+.qb-tree-panel input.rule-value.form-check-input {
+    height: 1.925em;
+    margin-top: -0.02em;
+}
+
 .qb-tree-panel select.ruleGroup-combinators {
     width: auto;
 }

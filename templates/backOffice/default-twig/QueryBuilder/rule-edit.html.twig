@@ -116,7 +116,7 @@
 
                                 <div class="qb-hooks-grid" data-testid="qb-rule-hooks">
                                     {% for hook in hook_choices %}
-                                        <div class="qb-hook-choice" data-context="{{ hook.context }}" data-qb-editor-target="hookChoice">
+                                        <div class="qb-hook-choice" data-context="{{ hook.context }}" data-qb-editor-target="hookChoice" hidden>
                                             <label class="qb-hook-label">
                                                 <input type="checkbox" class="form-check-input" name="hooks[]" value="{{ hook.code }}" {{ hook.checked ? 'checked' }} data-action="change->qb-editor#refreshHooks">
                                                 <span class="qb-hook-text">
@@ -156,18 +156,18 @@
                 </div>
             </div>
 
-            <div class="qb-form-actions sticky-bottom bg-body py-3 border-top d-flex align-items-center gap-2">
+            <div class="qb-form-actions sticky-bottom py-4 border-top bg-white d-flex align-items-center gap-2">
                 <button type="submit" class="btn btn-primary" data-testid="qb-rule-submit">
                     <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save the rule'|trans({}, d) }}
                 </button>
                 <a href="{{ path('admin_query_builder_list') }}" class="btn btn-outline-secondary">{{ 'Back to the list'|trans({}, d) }}</a>
-                <span class="small text-body-secondary ms-auto">{{ 'The actions below are saved separately.'|trans({}, d) }}</span>
+                <span class="small text-body-secondary ms-3">{{ 'The actions below are saved separately.'|trans({}, d) }}</span>
             </div>
         </form>
 
         {# ------------------------------------------------------------------ 4. Actions #}
-        <div class="card mb-4" data-testid="qb-rule-actions">
-            <div class="card-header d-flex align-items-center gap-2">
+        <div class="card mt-5 mb-4" data-testid="qb-rule-actions">
+            <div class="card-header bg-primary d-flex align-items-center gap-2">
                 <h2 class="h6 text-uppercase mb-0">{{ 'Actions of the rule'|trans({}, d) }}</h2>
                 <span class="badge text-bg-secondary">{{ actions|length }}</span>
             </div>
