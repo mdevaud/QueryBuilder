@@ -4,5 +4,5 @@
    templates/frontOffice/<theme>/modules/QueryBuilder/product-list.html.twig
    (variables: hook, rule_name, action_name, product_ids). #}
 <section class="QueryBuilderProductList" data-hook="{{ hook }}" data-rule="{{ rule_name }}" data-action="{{ action_name }}">
-    <twig:Layouts:CrossSelling:Base :productIds="product_ids" title="{{ action_name }}" />
+    <twig:Layouts:CrossSelling:Base :filters="{id: product_ids, itemsPerPage: product_ids|length}" title="{{ action_name }}" />
 </section>
