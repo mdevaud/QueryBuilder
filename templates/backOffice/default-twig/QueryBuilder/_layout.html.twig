@@ -1,0 +1,23 @@
+{# Back-office layout of the module pages.
+
+   The module controllers extend BaseAdminController, so their views are rendered by
+   Thelia's TwigParser, not by the Twig environment the theme's own controllers use.
+   That parser assigns its own `app` variable - a plain object carrying environment,
+   request, session and debug - which shadows the Symfony AppVariable global for the
+   whole render. `app.flashes`, which the theme base reads, resolves to nothing there,
+   so every message added through addFlash() was dropped on the way to the page.
+   The session the parser does expose carries the flash bag, so the messages are read
+   off it instead. The markup stays the one of @BackOfficeDefaultTwig/base.html.twig. #}
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block flash %}
+    {% set flashes = app.session is not null ? app.session.flashBag.all : {} %}
+    {% for type, messages in flashes %}
+        {% for message in messages %}
+            <div class="alert alert-{{ type }} alert-dismissible fade show" role="alert" data-testid="bo-flash-{{ type }}">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endfor %}
+{% endblock %}
