@@ -199,7 +199,12 @@
                 {% if actions is empty %}
                     <div class="alert alert-info mb-0">{{ 'No action: the rule produces nothing for now.'|trans({}, d) }}</div>
                 {% else %}
-                    <div class="table-responsive">
+                    <div class="table-responsive"
+                         data-controller="qb-action-summary"
+                         data-qb-action-summary-fields-value="{{ context_fields|json_encode|e('html_attr') }}"
+                         data-qb-action-summary-labels-value="{{ editor_labels|json_encode|e('html_attr') }}"
+                         data-qb-action-summary-title-value="{{ 'Reading of the selection'|trans({}, d) }}"
+                         data-qb-action-summary-empty-hint-value="{{ 'No criterion: the action would apply to the whole catalog.'|trans({}, d) }}">
                         <table class="table table-hover align-middle mb-0">
                             <thead>
                             <tr>
@@ -213,7 +218,20 @@
                             <tbody>
                             {% for action in actions %}
                                 <tr data-row-id="{{ action.id }}">
-                                    <td><a href="{{ path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) }}" class="fw-semibold">{{ action.name }}</a></td>
+                                    <td>
+                                        <a href="{{ path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) }}" class="fw-semibold">{{ action.name }}</a>
+                                        {# The cart discount has no product selection: no reading to offer #}
+                                        {% if action.code != cart_discount_code %}
+                                            <button type="button"
+                                                    class="qb-action-summary-trigger"
+                                                    data-qb-action-summary-target="trigger"
+                                                    data-tree="{{ action.condition_tree|json_encode|e('html_attr') }}"
+                                                    data-testid="qb-action-summary-{{ action.id }}"
+                                                    aria-label="{{ 'Reading of the selection'|trans({}, d) }}">
+                                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                            </button>
+                                        {% endif %}
+                                    </td>
                                     <td><code>{{ action.code }}</code></td>
                                     <td><span class="badge text-bg-secondary">{{ action.type }}</span></td>
                                     <td class="text-center">

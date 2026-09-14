@@ -250,6 +250,48 @@
     display: block;
 }
 
+/* --------------------------------------------- Action summary popovers */
+
+/* Plain (i) mark after the action name; the popover itself is appended to body */
+.qb-action-summary-trigger {
+    padding: 0 2px;
+    border: 0;
+    background: none;
+    color: var(--qb-accent);
+    font-size: 14px;
+    line-height: 1;
+    vertical-align: -1px;
+    cursor: help;
+}
+
+.qb-action-summary-trigger:hover,
+.qb-action-summary-trigger:focus-visible {
+    color: var(--bs-link-hover-color, var(--qb-accent));
+}
+
+.qb-action-summary-trigger-empty {
+    color: var(--qb-text-muted);
+}
+
+.qb-action-summary-popover {
+    max-width: 480px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.qb-action-summary-popover .popover-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--qb-accent);
+}
+
+.qb-action-summary-empty {
+    font-style: italic;
+    color: var(--qb-text-muted);
+}
+
 /* ------------------------------------------------- react-querybuilder skin */
 
 .qb-tree-panel .ruleGroup {
@@ -286,6 +328,11 @@
 .qb-tree-panel select.rule-value,
 .qb-tree-panel textarea.rule-value {
     width: 240px;
+}
+
+.qb-tree-panel input.rule-value.form-check-input {
+    height: 1.925em;
+    margin-top: -0.02em;
 }
 
 .qb-tree-panel select.ruleGroup-combinators {

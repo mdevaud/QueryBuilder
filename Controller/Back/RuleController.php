@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace QueryBuilder\Controller\Back;
 
 use QueryBuilder\Action\ActionRegistry;
+use QueryBuilder\Action\ApplyCartDiscountAction;
 use QueryBuilder\Enum\Context;
 use QueryBuilder\Event\QueryBuilderRulesChangedEvent;
 use QueryBuilder\Form\ActionForm;
@@ -133,6 +134,7 @@ class RuleController extends BaseAdminController
                 'code' => $action->getCode(),
                 'type' => $action->getType(),
                 'activate' => (bool) $action->getActivate(),
+                'condition_tree' => $action->getConditionTreeArray(),
             ];
         }
 
@@ -179,6 +181,7 @@ class RuleController extends BaseAdminController
             'action_form' => $this->createForm(ActionForm::getName())->createView()->getView(),
             'actions' => $actions,
             'available_actions' => $availableActions,
+            'cart_discount_code' => ApplyCartDiscountAction::CODE,
             'contexts' => $this->contextChoices(),
             'hook_choices' => $hookChoices,
             'fields_by_context' => $fieldsByContext,

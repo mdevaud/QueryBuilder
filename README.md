@@ -38,13 +38,13 @@ A rule runs when one of its hooks is called and its condition tree matches the c
 
 The screens live under `/admin/query_builder`: the list of rules, a rule screen in three steps (identification, context and hooks, conditions) followed by its actions, and an action screen with the parameters of the selected action code.
 
-The condition editor is the `QueryBuilderType` form type of the bundle, configured with the `native` processor: the stored tree is the react-querybuilder structure (`combinator`, `not`, `rules` with `field`, `operator`, `value`), without the ids the editor keeps for itself. The fields offered depend on the context of the rule; changing the context drops the conditions on fields the new context does not offer. A readable summary of the tree is shown above the editor.
+The condition editor is the `QueryBuilderType` form type of the bundle, configured with the `native` processor: the stored tree is the react-querybuilder structure (`combinator`, `not`, `rules` with `field`, `operator`, `value`), without the ids the editor keeps for itself. The fields offered depend on the context of the rule; changing the context drops the conditions on fields the new context does not offer. A readable summary of the tree is shown above the editor; on the rule screen the same reading of each action selection opens in a popover from the (i) mark after the action name.
 
 The form type checks every submitted tree against the declared fields and per-field operators; the module then checks the fields against the context of the rule (`SqlBuilder::validateTree()`). A tree naming a field or an operator outside the dictionary is refused at save time and at run time.
 
 ### JavaScript build
 
-The editor script (React, react-querybuilder, the Stimulus controller of the bundle and the two controllers of the module) is built with webpack from `Resources/` into `templates/backOffice/default-twig/assets/dist/`, which is committed and served by the Thelia asset resolver on the module pages only. To rebuild it:
+The editor script (React, react-querybuilder, the Stimulus controller of the bundle and the three controllers of the module) is built with webpack from `Resources/` into `templates/backOffice/default-twig/assets/dist/`, which is committed and served by the Thelia asset resolver on the module pages only. To rebuild it:
 
 ```bash
 cd Resources
