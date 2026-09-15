@@ -10,6 +10,7 @@ use Propel\Runtime\Connection\ConnectionInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ServicesConfigurator;
 use Symfony\Component\Finder\Finder;
 use Thelia\Core\Install\Database;
+use Thelia\Core\TheliaKernel;
 use Thelia\Module\BaseModule;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
@@ -19,6 +20,19 @@ class QueryBuilder extends BaseModule
 {
     /** @var string */
     public const DOMAIN_NAME = 'querybuilder';
+
+    public const MINIMUM_CORE_VERSION = '3.0.0';
+
+    /**
+     * The <thelia> bound of module.xml is not enforced by every 2.x core: a checkout
+     * of this line dropped into a Thelia 2 shop must refuse to activate, with a message.
+     */
+    public function preActivation(?ConnectionInterface $con = null): bool
+    {
+        self::assertSupportedCoreVersion(self::coreVersion());
+
+        return true;
+    }
 
     public function postActivation(?ConnectionInterface $con = null): void
     {
@@ -76,5 +90,37 @@ class QueryBuilder extends BaseModule
         $servicesConfigurator->set('querybuilder.form.type.query_builder', QueryBuilderType::class)
             ->args([service(FormOptionsNormalizer::class), param('kernel.default_locale')])
             ->tag('thelia.form.type');
+    }
+
+    /** @throws \RuntimeException when the running core is older than Thelia 3 or unknown */
+    public static function assertSupportedCoreVersion(?string $coreVersion): void
+    {
+        if ($coreVersion === null || version_compare($coreVersion, self::MINIMUM_CORE_VERSION, '<')) {
+            throw new \RuntimeException(sprintf(
+                'The QueryBuilder module %s requires Thelia %s or later, this shop runs Thelia %s. The Thelia 2 line of the module is not published.',
+                self::currentModuleVersion(),
+                self::MINIMUM_CORE_VERSION,
+                $coreVersion ?? 'unknown'
+            ));
+        }
+    }
+
+    private static function coreVersion(): ?string
+    {
+        if (\defined(TheliaKernel::class . '::THELIA_VERSION')) {
+            return TheliaKernel::THELIA_VERSION;
+        }
+
+        //Thelia 2 exposes its version on Thelia\Core\Thelia, a class Thelia 3 removed
+        $legacyKernel = 'Thelia\\Core\\Thelia';
+
+        return \defined($legacyKernel . '::THELIA_VERSION') ? \constant($legacyKernel . '::THELIA_VERSION') : null;
+    }
+
+    private static function currentModuleVersion(): string
+    {
+        $moduleXml = @simplexml_load_file(__DIR__ . '/Config/module.xml');
+
+        return $moduleXml instanceof \SimpleXMLElement ? (string) $moduleXml->version : 'dev';
     }
 }
