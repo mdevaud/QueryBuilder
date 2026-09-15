@@ -136,6 +136,7 @@ class RuleController extends BaseAdminController
                 'type' => $action->getType(),
                 'activate' => (bool) $action->getActivate(),
                 'condition_tree' => $action->getConditionTreeArray(),
+                'parameters' => $action->getParametersArray(),
             ];
         }
 

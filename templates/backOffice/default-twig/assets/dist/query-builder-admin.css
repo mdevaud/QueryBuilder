@@ -292,6 +292,37 @@
     color: var(--qb-text-muted);
 }
 
+/* Parameters listed under the selection; the rail separates them from the tree */
+.qb-action-summary-details {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.qb-action-summary > * + .qb-action-summary-details {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--qb-border);
+}
+
+.qb-action-summary-details > li {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2px 0;
+    font-weight: 600;
+}
+
+.qb-action-summary-details > li::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--qb-accent);
+    transform: translateY(-1px);
+}
+
 /* ------------------------------------------------- react-querybuilder skin */
 
 .qb-tree-panel .ruleGroup {

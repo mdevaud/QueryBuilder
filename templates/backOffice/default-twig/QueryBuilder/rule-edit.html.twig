@@ -203,8 +203,8 @@
                          data-controller="qb-action-summary"
                          data-qb-action-summary-fields-value="{{ action_fields|json_encode|e('html_attr') }}"
                          data-qb-action-summary-labels-value="{{ editor_labels|json_encode|e('html_attr') }}"
-                         data-qb-action-summary-title-value="{{ 'Reading of the selection'|trans({}, d) }}"
-                         data-qb-action-summary-empty-hint-value="{{ 'No criterion: the action would apply to the whole catalog.'|trans({}, d) }}">
+                         data-qb-action-summary-title-value="{{ 'Reading of the action'|trans({}, d) }}"
+                         data-qb-action-summary-empty-hint-value="{{ 'No criterion: the action applies to the whole catalog.'|trans({}, d) }}">
                         <table class="table table-hover align-middle mb-0">
                             <thead>
                             <tr>
@@ -220,17 +220,28 @@
                                 <tr data-row-id="{{ action.id }}">
                                     <td>
                                         <a href="{{ path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) }}" class="fw-semibold">{{ action.name }}</a>
-                                        {# The cart discount has no product selection: no reading to offer #}
-                                        {% if action.code != cart_discount_code %}
-                                            <button type="button"
-                                                    class="qb-action-summary-trigger"
-                                                    data-qb-action-summary-target="trigger"
-                                                    data-tree="{{ action.condition_tree|json_encode|e('html_attr') }}"
-                                                    data-testid="qb-action-summary-{{ action.id }}"
-                                                    aria-label="{{ 'Reading of the selection'|trans({}, d) }}">
-                                                <i class="bi bi-info-circle" aria-hidden="true"></i>
-                                            </button>
+                                        {# Parameters worth reading from here: the discount rate, and the options only when on #}
+                                        {% set details = [] %}
+                                        {% set rate = action.parameters.discount_rate ?? action.parameters.cart_discount_rate ?? null %}
+                                        {% if rate %}
+                                            {% set details = details|merge(['Discount rate: %rate% %'|trans({ '%rate%': rate }, d)]) %}
                                         {% endif %}
+                                        {% if action.parameters.cart_discount_free_shipping ?? false %}
+                                            {% set details = details|merge(['Free shipping'|trans({}, d)]) %}
+                                        {% endif %}
+                                        {% if action.parameters.discount_cumulative ?? false %}
+                                            {% set details = details|merge(['Stackable with an existing promotion'|trans({}, d)]) %}
+                                        {% endif %}
+                                        <button type="button"
+                                                class="qb-action-summary-trigger"
+                                                data-qb-action-summary-target="trigger"
+                                                {# The cart discount has no product selection: only its parameters are read #}
+                                                {% if action.code != cart_discount_code %}data-tree="{{ action.condition_tree|json_encode|e('html_attr') }}"{% endif %}
+                                                data-details="{{ details|json_encode|e('html_attr') }}"
+                                                data-testid="qb-action-summary-{{ action.id }}"
+                                                aria-label="{{ 'Reading of the action'|trans({}, d) }}">
+                                            <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                        </button>
                                     </td>
                                     <td><code>{{ action.code }}</code></td>
                                     <td><span class="badge text-bg-secondary">{{ action.type }}</span></td>

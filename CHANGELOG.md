@@ -10,7 +10,7 @@ Port of the module to Thelia 3. The Thelia 2 line (1.0.0 to 1.2.0) lived in the 
 
 ### Added
 - Back-office screens on the default-twig theme (Twig, Bootstrap 5): rule list, rule in three steps, action screen, entry in the Tools menu.
-- On the rule screen, an (i) mark after each action name opens a popover reading the product selection of the action, the way the action screen does above its editor.
+- On the rule screen, an (i) mark after each action name opens a popover reading the product selection of the action, the way the action screen does above its editor, followed by its discount rate, free shipping and stackable options when set.
 - Condition editor provided by `openstudio/query-builder-bundle` (`QueryBuilderType`, `native` processor, per-field operators), with a readable summary of the tree, a condition counter and the hook grid filtered by context.
 - Front rendering through the `theme_hook()` points of Flexy (`ThemeHookInterface`) with a product list template based on the Flexy cross-selling component, overridable by the theme.
 - Twig function `query_builder_products()` returning the hook result (ids, offers, actions).
