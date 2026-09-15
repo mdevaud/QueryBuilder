@@ -201,7 +201,7 @@
                 {% else %}
                     <div class="table-responsive"
                          data-controller="qb-action-summary"
-                         data-qb-action-summary-fields-value="{{ context_fields|json_encode|e('html_attr') }}"
+                         data-qb-action-summary-fields-value="{{ action_fields|json_encode|e('html_attr') }}"
                          data-qb-action-summary-labels-value="{{ editor_labels|json_encode|e('html_attr') }}"
                          data-qb-action-summary-title-value="{{ 'Reading of the selection'|trans({}, d) }}"
                          data-qb-action-summary-empty-hint-value="{{ 'No criterion: the action would apply to the whole catalog.'|trans({}, d) }}">

@@ -7,6 +7,7 @@ namespace QueryBuilder\Tests\Unit\Service;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use QueryBuilder\Dictionary\FieldDefinition;
 use QueryBuilder\Enum\Context;
 use QueryBuilder\Tests\Support\DictionaryFactory;
 
@@ -80,6 +81,92 @@ final class DataDictionaryTest extends TestCase
     }
 
     #[Test]
+    public function aFieldWithoutContextsIsGlobalAndOfferedInEveryContextAndEditor(): void
+    {
+        $field = DictionaryFactory::base()->getField('product_ref');
+
+        self::assertNotNull($field);
+        self::assertSame([Context::GLOBAL_SCOPE], $field->contexts);
+        self::assertSame(FieldDefinition::USAGES, $field->usages);
+        self::assertSame('product', $field->getGroup());
+
+        foreach (Context::cases() as $context) {
+            self::assertTrue($field->isAvailableInContext($context), $context->value);
+        }
+    }
+
+    #[Test]
+    public function aFieldRestrictedToAContextIsHiddenFromTheOthersAndFromGlobalRules(): void
+    {
+        $dictionary = DictionaryFactory::base();
+
+        self::assertArrayHasKey('context_product_same_brand', $dictionary->getFields(Context::PRODUCT));
+        self::assertArrayNotHasKey('context_product_same_brand', $dictionary->getFields(Context::CART));
+        self::assertArrayNotHasKey('context_product_same_brand', $dictionary->getFields(Context::GLOBAL_SCOPE));
+        self::assertArrayHasKey('product_ref', $dictionary->getFields(Context::GLOBAL_SCOPE), 'a GLOBAL field stays in GLOBAL rules');
+    }
+
+    #[Test]
+    public function theUsageReservesAFieldToOneEditor(): void
+    {
+        $dictionary = DictionaryFactory::withOverrides(
+            <<<YAML
+            fields:
+                selection_only:
+                    label: "Selection only"
+                    field: product.ref
+                    usage: [action]
+            YAML,
+        );
+
+        $ruleFields = $dictionary->getFields(Context::PRODUCT, FieldDefinition::USAGE_RULE);
+        $actionFields = $dictionary->getFields(Context::PRODUCT, FieldDefinition::USAGE_ACTION);
+
+        self::assertArrayNotHasKey('selection_only', $ruleFields);
+        self::assertArrayHasKey('selection_only', $actionFields);
+        self::assertArrayHasKey('product_ref', $ruleFields, 'a field without usage is offered to both editors');
+        self::assertArrayHasKey('product_ref', $actionFields);
+        self::assertArrayNotHasKey('context_category_id', $actionFields, 'the context object fields stay in the rule editor');
+        self::assertArrayHasKey('context_category_id', $dictionary->getFields(Context::CATEGORY, FieldDefinition::USAGE_RULE));
+        self::assertArrayNotHasKey('context_category_product', $dictionary->getFields(Context::CATEGORY, FieldDefinition::USAGE_RULE));
+    }
+
+    #[Test]
+    public function everyShippedContextFieldIsRestrictedToItsPlaceholderContext(): void
+    {
+        $placeholderContexts = [
+            ':product_id' => Context::PRODUCT,
+            ':category_id' => Context::CATEGORY,
+            ':brand_id' => Context::BRAND,
+            ':order_id' => Context::ORDER,
+        ];
+
+        //Reads the cart of the visit, offered to the PRODUCT product lists by design
+        $sessionBoundContextFields = ['context_product_in_cart' => Context::PRODUCT];
+
+        foreach (DictionaryFactory::base()->getFields() as $field) {
+            if (!str_starts_with($field->code, 'context_')) {
+                continue;
+            }
+
+            if (isset($sessionBoundContextFields[$field->code])) {
+                self::assertSame([$sessionBoundContextFields[$field->code]], $field->contexts, $field->code);
+                continue;
+            }
+
+            $expected = null;
+            foreach ($placeholderContexts as $placeholder => $context) {
+                if (str_contains((string) $field->expression, $placeholder)) {
+                    $expected = $context;
+                }
+            }
+
+            self::assertNotNull($expected, sprintf('%s reads no context placeholder', $field->code));
+            self::assertSame([$expected], $field->contexts, $field->code);
+        }
+    }
+
+    #[Test]
     #[DataProvider('invalidDefinitions')]
     public function anInvalidDefinitionIsRefused(string $yaml, string $message): void
     {
@@ -111,6 +198,18 @@ final class DataDictionaryTest extends TestCase
         yield 'join without a source column' => [
             "joins:\n    broken_table:\n        to: id\n",
             'requires a "from" in "table.column" form',
+        ];
+        yield 'unknown context' => [
+            "fields:\n    broken:\n        field: product.ref\n        contexts: [SHOP]\n",
+            'unknown context "SHOP"',
+        ];
+        yield 'contexts not a list' => [
+            "fields:\n    broken:\n        field: product.ref\n        contexts: PRODUCT\n",
+            'expects a list of contexts',
+        ];
+        yield 'unknown usage' => [
+            "fields:\n    broken:\n        field: product.ref\n        usage: [editor]\n",
+            'unknown usage "editor"',
         ];
         yield 'malformed hook entry' => [
             "contexts:\n    PRODUCT:\n        - 42\n",

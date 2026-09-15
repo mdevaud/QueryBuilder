@@ -38,9 +38,9 @@ A rule runs when one of its hooks is called and its condition tree matches the c
 
 The screens live under `/admin/query_builder`: the list of rules, a rule screen in three steps (identification, context and hooks, conditions) followed by its actions, and an action screen with the parameters of the selected action code.
 
-The condition editor is the `QueryBuilderType` form type of the bundle, configured with the `native` processor: the stored tree is the react-querybuilder structure (`combinator`, `not`, `rules` with `field`, `operator`, `value`), without the ids the editor keeps for itself. The fields offered depend on the context of the rule; changing the context drops the conditions on fields the new context does not offer. A readable summary of the tree is shown above the editor; on the rule screen the same reading of each action selection opens in a popover from the (i) mark after the action name.
+The condition editor is the `QueryBuilderType` form type of the bundle, configured with the `native` processor: the stored tree is the react-querybuilder structure (`combinator`, `not`, `rules` with `field`, `operator`, `value`), without the ids the editor keeps for itself. The fields offered depend on the context of the rule and on the editor (the trigger conditions of the rule, or the product selection of an action); changing the context drops the conditions on fields the new context does not offer. Field labels are prefixed with their group (the part of the field code before the first underscore, translated), so the alphabetical list gathers the product, cart, customer and context fields. A readable summary of the tree is shown above the editor; on the rule screen the same reading of each action selection opens in a popover from the (i) mark after the action name.
 
-The form type checks every submitted tree against the declared fields and per-field operators; the module then checks the fields against the context of the rule (`SqlBuilder::validateTree()`). A tree naming a field or an operator outside the dictionary is refused at save time and at run time.
+The form type checks every submitted tree against the declared fields and per-field operators; the module then checks the fields against the context of the rule and the editor they were posted from (`SqlBuilder::validateTree()`). A tree naming a field or an operator outside the dictionary is refused at save time and at run time.
 
 ### JavaScript build
 
@@ -69,7 +69,16 @@ An expression may contain the `:value` token: the value entered in the editor is
 
 Field types: `text`, `number`, `date`, `datetime` (entered as a date, compared on `DATE()`), `boolean`. A field may declare `values_query` (a `value` column, an optional `label` column, `:locale` allowed): the editor then offers a "list of values" select next to the free operators. Beyond 300 rows or on SQL error the field falls back to the free input. Labels of fields and hooks are translation keys of the `querybuilder` domain.
 
-Fields shipped: product reference, title, visibility, category, category title, brand, price, creation date, product in the cart, current product, product bought in the last three months, cart products total, delivery country.
+A field declares the contexts it is offered in with `contexts`, a list of `QueryBuilder\Enum\Context` values; `GLOBAL`, the default, means every context, and a `GLOBAL` rule itself only sees `GLOBAL` fields. Restrict a field to the contexts where its placeholder is filled: `:product_id` to `PRODUCT`, `:category_id` to `CATEGORY`, `:brand_id` to `BRAND`, `:order_id` to `ORDER`. The cart and the customer come from the session in every context, so their fields stay `GLOBAL` (a `PRODUCT` rule can select the products sharing a brand with the cart). A field also declares the editors it is offered in with `usage`, a list among `rule` (trigger conditions) and `action` (product selection), both by default: a field comparing the selected product to the object of the context is always true in the rule editor and belongs to `[action]`, a field reading the object itself (`:category_id` in a list) selects all or nothing in the action editor and belongs to `[rule]`.
+
+A field reading a placeholder without a value in the current visit (`:customer_id` for a visitor, `:category_id` outside a category page) is never evaluated to "false": the rule or the action skips, as described above. Dynamic expressions comparing the product to the object of the context are written as `EXISTS (...)`, which always yields 0 or 1: with `:product_id` bound to 0 outside a product page, a scalar subquery such as `(SELECT brand_id FROM product WHERE id = 0)` yields `NULL` and "= false" would let nothing through instead of everything.
+
+Fields shipped, by group:
+
+- `product`: reference, title, visibility, category, category title, brand, brand id, main category, price, creation date, in the cart, current product, flagged as new, on catalog promotion, in stock.
+- `cart` (every context): number of lines and items, quantity of the product, contains a brand or a category, contains a promotional line, same brand or shared category with a cart product, accessory of a cart product, products total; `delivery`: country.
+- `customer` (every context, skipped for a visitor): reseller, discount rate, seniority, number of orders, days since the last order, newsletter subscriber, product bought in the last three months or ever, brand or category already bought.
+- `context`, restricted to their context and editor: same brand, shared category, same main category, accessory, same template and same feature value as the context product, product already in the cart (`PRODUCT`, action editor); context category and its parent (`CATEGORY`, rule editor), product of the context category or of its sub-tree (`CATEGORY`, action editor, recursive CTE: MySQL 8.0+ or MariaDB 10.2+); context brand (`BRAND`, rule editor), product of the context brand (`BRAND`, action editor).
 
 Hook points shipped, per context (the `theme_hook()` codes of Flexy): `home.top` and `home.bottom` (GLOBAL), `category.top` and `category.bottom`, `brand.top` and `brand.bottom`, `product.top`, `product.details.bottom` and `product.bottom`, `cart.top` and `cart.bottom`, `account.top` and `account.bottom` (CUSTOMER). A GLOBAL rule can be bound to any declared hook. Declare a hook only when a theme calls it, or when a front consumes it through the API.
 
@@ -151,8 +160,9 @@ Two domains: `querybuilder` for the labels translated in PHP (contexts, actions,
 ## Debug commands
 
 ```bash
-php Thelia querybuilder:dictionary [CONTEXT]
+php Thelia querybuilder:dictionary [CONTEXT] [--usage=rule|action]
 php Thelia querybuilder:compile '{"combinator":"and","rules":[{"field":"product_ref","operator":"=","value":"ABC"}]}' --customer=42 --cart-total=120 --delivery-country=64 --execute
+php Thelia querybuilder:compile '{"combinator":"and","rules":[{"field":"context_product_same_brand","operator":"=","value":true}]}' --product=123 --cart=7 --category=3 --brand=2 --order=15 --execute
 php Thelia querybuilder:run product.top --customer=42 --product=123
 ```
 

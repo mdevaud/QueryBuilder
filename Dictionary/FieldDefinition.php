@@ -22,8 +22,18 @@ final readonly class FieldDefinition
         self::TYPE_BOOLEAN,
     ];
 
+    //Editors a field is offered in: the trigger conditions of a rule, the product selection of an action
+    public const USAGE_RULE = 'rule';
+    public const USAGE_ACTION = 'action';
+
+    public const USAGES = [
+        self::USAGE_RULE,
+        self::USAGE_ACTION,
+    ];
+
     /**
-     * @param Context[] $contexts empty = available in every context
+     * @param Context[] $contexts contexts the field is offered in; GLOBAL_SCOPE (the default) means every context
+     * @param string[] $usages editors the field is offered in (USAGE_* values), both by default
      * @param string[]|null $operators restriction of the operators allowed for the field type
      */
     public function __construct(
@@ -34,12 +44,22 @@ final readonly class FieldDefinition
         public ?string $column = null,
         //Self-contained SQL expression (subquery allowed), may reference runtime placeholders (:customer_id...)
         public ?string $expression = null,
-        public array $contexts = [],
+        public array $contexts = [Context::GLOBAL_SCOPE],
         public ?array $operators = null,
         //SQL returning the possible values ("value" + optional "label" columns, :locale allowed) —
         //the back-office editor then shows a select instead of a free input
         public ?string $valuesQuery = null,
+        public array $usages = self::USAGES,
     ) {
+    }
+
+    /**
+     * Hierarchical group of the field, read from its code before the first
+     * underscore ("product_created_at" => "product", "delivery_country" => "delivery").
+     */
+    public function getGroup(): string
+    {
+        return explode('_', $this->code, 2)[0];
     }
 
     /**
@@ -61,8 +81,14 @@ final readonly class FieldDefinition
         return explode('.', $this->column, 2)[0];
     }
 
+    /** A GLOBAL field is available in every context, like a GLOBAL rule listens to every hook. */
     public function isAvailableInContext(Context $context): bool
     {
-        return $this->contexts === [] || \in_array($context, $this->contexts, true);
+        return \in_array(Context::GLOBAL_SCOPE, $this->contexts, true) || \in_array($context, $this->contexts, true);
+    }
+
+    public function isAvailableForUsage(string $usage): bool
+    {
+        return \in_array($usage, $this->usages, true);
     }
 }

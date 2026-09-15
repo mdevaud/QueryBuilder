@@ -102,22 +102,23 @@ final readonly class SqlBuilder
     /**
      * Structural validation of a condition tree (known fields, allowed
      * operators, resolvable joins) without binding runtime values. When a
-     * context is given, fields restricted to other contexts are rejected —
-     * the editor field list is filtered per context, but the posted JSON
-     * must not be trusted to honor that filter.
+     * context is given, fields restricted to other contexts are rejected; when
+     * a usage (FieldDefinition::USAGE_*) is given, fields reserved to the other
+     * editor are rejected — the editor field list is filtered on both, but the
+     * posted JSON must not be trusted to honor that filter.
      *
      * @throws \InvalidArgumentException when the tree is invalid
      */
-    public function validateTree(?array $conditionTree, ?Context $context = null): void
+    public function validateTree(?array $conditionTree, ?Context $context = null, ?string $usage = null): void
     {
         if ($conditionTree === null) {
             return;
         }
 
-        $this->compileGroup($conditionTree, new QueryParts(), $context);
+        $this->compileGroup($conditionTree, new QueryParts(), $context, $usage);
     }
 
-    private function compileGroup(array $group, QueryParts $queryParts, ?Context $context = null): string
+    private function compileGroup(array $group, QueryParts $queryParts, ?Context $context = null, ?string $usage = null): string
     {
         $combinator = strtoupper((string) ($group['combinator'] ?? 'AND'));
 
@@ -133,8 +134,8 @@ final readonly class SqlBuilder
             }
 
             $clauses[] = isset($rule['rules'])
-                ? $this->compileGroup($rule, $queryParts, $context)
-                : $this->compileRule($rule, $queryParts, $context);
+                ? $this->compileGroup($rule, $queryParts, $context, $usage)
+                : $this->compileRule($rule, $queryParts, $context, $usage);
         }
 
         if ($clauses === []) {
@@ -150,7 +151,7 @@ final readonly class SqlBuilder
         return $sql;
     }
 
-    private function compileRule(array $rule, QueryParts $queryParts, ?Context $context = null): string
+    private function compileRule(array $rule, QueryParts $queryParts, ?Context $context = null, ?string $usage = null): string
     {
         $fieldCode = (string) ($rule['field'] ?? '');
         $field = $this->dataDictionary->getField($fieldCode);
@@ -164,6 +165,14 @@ final readonly class SqlBuilder
                 'QueryBuilder: field "%s" is not available in context %s.',
                 $fieldCode,
                 $context->value
+            ));
+        }
+
+        if ($usage !== null && !$field->isAvailableForUsage($usage)) {
+            throw new \InvalidArgumentException(sprintf(
+                'QueryBuilder: field "%s" is not available in the %s editor.',
+                $fieldCode,
+                $usage
             ));
         }
 

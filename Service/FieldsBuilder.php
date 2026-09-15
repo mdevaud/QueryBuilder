@@ -38,17 +38,24 @@ final readonly class FieldsBuilder
     ) {
     }
 
+    //Between the translated group of a field and its label
+    private const GROUP_SEPARATOR = ' / ';
+
     /**
-     * Fields of the given context, every field when null (the form option must
-     * accept every field: the context restriction is enforced by SqlBuilder::validateTree()).
+     * Fields of the given context and editor usage (FieldDefinition::USAGE_*),
+     * every field when null (the form option must accept every field: the
+     * context and usage restrictions are enforced by SqlBuilder::validateTree()).
+     * Labels are prefixed with the translated group of the field (the part of
+     * its code before the first underscore), so the alphabetical order of the
+     * editor gathers the fields of a same group.
      *
      * @return list<array{name: string, type: string, label: string, labelInformation: ?string, values: ?list<array{name: string, label: string}>, operators: list<string>}>
      */
-    public function buildForContext(?Context $context, string $locale = 'fr_FR'): array
+    public function buildForContext(?Context $context, string $locale = 'fr_FR', ?string $usage = null): array
     {
         $fields = [];
 
-        foreach ($this->dataDictionary->getFields($context) as $field) {
+        foreach ($this->dataDictionary->getFields($context, $usage) as $field) {
             $fields[] = $this->buildField($field, $locale);
         }
 
@@ -58,12 +65,12 @@ final readonly class FieldsBuilder
     }
 
     /** @return array<string, list<array>> keyed by context value */
-    public function buildForAllContexts(string $locale = 'fr_FR'): array
+    public function buildForAllContexts(string $locale = 'fr_FR', ?string $usage = null): array
     {
         $fieldsByContext = [];
 
         foreach (Context::cases() as $context) {
-            $fieldsByContext[$context->value] = $this->buildForContext($context, $locale);
+            $fieldsByContext[$context->value] = $this->buildForContext($context, $locale, $usage);
         }
 
         return $fieldsByContext;
@@ -82,11 +89,17 @@ final readonly class FieldsBuilder
         return [
             'name' => $field->code,
             'type' => self::VALUE_TYPES[$field->type] ?? 'text',
-            'label' => Translator::getInstance()->trans($field->label, [], QueryBuilder::DOMAIN_NAME),
+            'label' => $this->translateGroup($field) . self::GROUP_SEPARATOR . Translator::getInstance()->trans($field->label, [], QueryBuilder::DOMAIN_NAME),
             'labelInformation' => null,
             'values' => $values,
             'operators' => $operators,
         ];
+    }
+
+    /** The group is translated through its capitalized code ("cart" => "Cart"), shown as is without translation. */
+    private function translateGroup(FieldDefinition $field): string
+    {
+        return Translator::getInstance()->trans(ucfirst($field->getGroup()), [], QueryBuilder::DOMAIN_NAME);
     }
 
     /**

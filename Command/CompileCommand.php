@@ -34,7 +34,11 @@ class CompileCommand extends ContainerAwareCommand
             ->addArgument('tree', InputArgument::REQUIRED, 'JSON condition tree, or @/path/to/file.json')
             ->addOption('customer', null, InputOption::VALUE_REQUIRED, 'Customer id for runtime placeholders')
             ->addOption('product', null, InputOption::VALUE_REQUIRED, 'Product id for runtime placeholders')
+            ->addOption('cart', null, InputOption::VALUE_REQUIRED, 'Cart id (:cart_id)')
             ->addOption('cart-products', null, InputOption::VALUE_REQUIRED, 'Comma-separated product ids of the cart')
+            ->addOption('order', null, InputOption::VALUE_REQUIRED, 'Order id (:order_id)')
+            ->addOption('category', null, InputOption::VALUE_REQUIRED, 'Category id (:category_id)')
+            ->addOption('brand', null, InputOption::VALUE_REQUIRED, 'Brand id (:brand_id)')
             ->addOption('locale', null, InputOption::VALUE_REQUIRED, 'Locale', 'fr_FR')
             ->addOption('cart-total', null, InputOption::VALUE_REQUIRED, 'Cart products total, taxes included (:cart_total)')
             ->addOption('delivery-country', null, InputOption::VALUE_REQUIRED, 'Delivery country id (:delivery_country_id)')
@@ -63,9 +67,13 @@ class CompileCommand extends ContainerAwareCommand
         $runtimeContext = $this->runtimeContextFactory->withProviderParameters(new RuntimeContext(
             customerId: $input->getOption('customer') !== null ? (int) $input->getOption('customer') : null,
             productId: $input->getOption('product') !== null ? (int) $input->getOption('product') : null,
+            cartId: $input->getOption('cart') !== null ? (int) $input->getOption('cart') : null,
             cartProductIds: $cartProducts !== ''
                 ? array_map('intval', explode(',', $cartProducts))
                 : [],
+            orderId: $input->getOption('order') !== null ? (int) $input->getOption('order') : null,
+            categoryId: $input->getOption('category') !== null ? (int) $input->getOption('category') : null,
+            brandId: $input->getOption('brand') !== null ? (int) $input->getOption('brand') : null,
             locale: (string) $input->getOption('locale'),
             cartTotal: $input->getOption('cart-total') !== null ? (float) $input->getOption('cart-total') : null,
             deliveryCountryId: $input->getOption('delivery-country') !== null ? (int) $input->getOption('delivery-country') : null,

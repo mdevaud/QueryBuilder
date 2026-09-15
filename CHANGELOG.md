@@ -21,6 +21,10 @@ Port of the module to Thelia 3. The Thelia 2 line (1.0.0 to 1.2.0) lived in the 
 - Free shipping on `CART_SET_POSTAGE` and through the postage estimator of the core; the delivery options of the delivery step are priced at zero as well, so the option cards and the summary agree.
 - Cart discount fragment shown on the checkout pages (`checkout.top`, `cart.bottom`).
 - Dictionary fields for the cart products total (`:cart_total`) and the delivery country (`:delivery_country_id`); `--cart-total` and `--delivery-country` options on the debug commands.
+- Dictionary fields per context: the selected product against the context product (same brand, shared category, same main category, accessory, same template, same feature value, product already in the cart), the context category and its sub-tree, the context brand; cart fields (line and item counts, product quantity, brands and categories in the cart, promotional line, same brand, shared category or accessory of a cart product) and customer fields (reseller, discount rate, seniority, orders, last order, newsletter, products, brands and categories already bought) available in every context; brand id, main category, new, promotion and stock flags on the product.
+- `usage` key on the dictionary fields (`rule`, `action`): a field can be reserved to the trigger conditions of a rule or to the product selection of an action; the editors and `SqlBuilder::validateTree()` honor it.
+- Field labels prefixed with their translated group (the part of the code before the first underscore) in the editors.
+- `--usage` option on `querybuilder:dictionary`; `--cart`, `--order`, `--category` and `--brand` options on `querybuilder:compile`.
 - Flexy hook codes declared per context in the base dictionary.
 - English and French translations of every label (`querybuilder` and `querybuilder.bo.default-twig` domains).
 - Unit tests (SQL compiler, dictionary, discount arithmetic), a module activation integration test and a GitHub Actions workflow running them on a fresh shop.
@@ -31,6 +35,7 @@ Port of the module to Thelia 3. The Thelia 2 line (1.0.0 to 1.2.0) lived in the 
 - Dictionary overrides are looked up in the directory of each module, wherever Composer installed it.
 - A `datetime` field is entered as a date and compared on its date part.
 - Dictionary labels, context labels and action labels are translation keys.
+- `contexts` on a dictionary field defaults to `[GLOBAL]`, which means every context (an empty list had the same effect); an unknown context value is refused with an explicit message.
 - Cart discount amounts are computed by a single service shared by the cart listener, the API addon and the theme hook.
 
 ### Removed

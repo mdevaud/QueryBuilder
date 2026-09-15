@@ -6,6 +6,7 @@ namespace QueryBuilder\Controller\Back;
 
 use QueryBuilder\Action\ActionRegistry;
 use QueryBuilder\Action\ApplyCartDiscountAction;
+use QueryBuilder\Dictionary\FieldDefinition;
 use QueryBuilder\Enum\Context;
 use QueryBuilder\Event\QueryBuilderRulesChangedEvent;
 use QueryBuilder\Form\ActionForm;
@@ -167,7 +168,8 @@ class RuleController extends BaseAdminController
             'activate' => (bool) $rule->getActivate(),
         ]);
 
-        $fieldsByContext = $fieldsBuilder->buildForAllContexts($this->getRequest()->getLocale());
+        $locale = $this->getRequest()->getLocale();
+        $fieldsByContext = $fieldsBuilder->buildForAllContexts($locale, FieldDefinition::USAGE_RULE);
 
         return $this->render('rule-edit', [
             'rule' => [
@@ -186,6 +188,8 @@ class RuleController extends BaseAdminController
             'hook_choices' => $hookChoices,
             'fields_by_context' => $fieldsByContext,
             'context_fields' => $fieldsByContext[$context->value] ?? [],
+            //The reading of each action selection needs the fields of the action editor
+            'action_fields' => $fieldsBuilder->buildForContext($context, $locale, FieldDefinition::USAGE_ACTION),
             'editor_labels' => $editorLabels->build(),
         ]);
     }
@@ -339,7 +343,7 @@ class RuleController extends BaseAdminController
             return null;
         }
 
-        $sqlBuilder->validateTree($conditionTree, $context);
+        $sqlBuilder->validateTree($conditionTree, $context, FieldDefinition::USAGE_RULE);
 
         return $conditionTree;
     }

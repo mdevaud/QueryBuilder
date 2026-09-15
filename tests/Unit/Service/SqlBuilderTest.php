@@ -6,6 +6,7 @@ namespace QueryBuilder\Tests\Unit\Service;
 
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
+use QueryBuilder\Dictionary\FieldDefinition;
 use QueryBuilder\Enum\Context;
 use QueryBuilder\Query\RuntimeContext;
 use QueryBuilder\Service\DataDictionary;
@@ -24,6 +25,10 @@ final class SqlBuilderTest extends TestCase
                 label: "Category already bought"
                 expression: "product.id IN (SELECT p.id FROM product p WHERE p.ref IN (:value))"
                 operators: [in, notIn]
+            selection_only:
+                label: "Selection only"
+                field: product.ref
+                usage: [action]
         YAML;
 
     protected function tearDown(): void
@@ -189,6 +194,33 @@ final class SqlBuilderTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('not available in context PRODUCT');
         $builder->validateTree($tree, Context::PRODUCT);
+    }
+
+    #[Test]
+    public function aFieldReservedToTheActionEditorIsRefusedInTheRuleEditor(): void
+    {
+        $builder = $this->builder(DictionaryFactory::withOverrides(self::PROJECT_OVERRIDE));
+        $tree = self::rule('selection_only', '=', 'x');
+
+        $builder->validateTree($tree, Context::PRODUCT, FieldDefinition::USAGE_ACTION);
+        $builder->validateTree($tree, Context::PRODUCT);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('not available in the rule editor');
+        $builder->validateTree($tree, Context::PRODUCT, FieldDefinition::USAGE_RULE);
+    }
+
+    #[Test]
+    public function aContextFieldBindsTheContextPlaceholderInsideItsExistsSubquery(): void
+    {
+        $compiled = $this->builder()->compile(
+            self::rule('context_product_same_brand', '=', true),
+            new RuntimeContext(productId: 42)
+        );
+
+        self::assertStringContainsString('(EXISTS (SELECT 1 FROM product qb_ctx WHERE qb_ctx.id = :product_id AND qb_ctx.brand_id IS NOT NULL AND qb_ctx.brand_id = product.brand_id)) = :qb_0', $compiled->sql);
+        self::assertSame(42, $compiled->parameters['product_id']);
+        self::assertSame(1, $compiled->parameters['qb_0']);
     }
 
     #[Test]

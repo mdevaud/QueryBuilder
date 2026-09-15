@@ -37,18 +37,18 @@ final class DataDictionary
         return $this->load()['joins'][$table] ?? null;
     }
 
-    /** @return array<string, FieldDefinition> keyed by field code */
-    public function getFields(?Context $context = null): array
+    /**
+     * Fields available in the given context (every context when null) and for
+     * the given editor usage (FieldDefinition::USAGE_*, every usage when null).
+     *
+     * @return array<string, FieldDefinition> keyed by field code
+     */
+    public function getFields(?Context $context = null, ?string $usage = null): array
     {
-        $fields = $this->load()['fields'];
-
-        if ($context === null) {
-            return $fields;
-        }
-
         return array_filter(
-            $fields,
-            static fn (FieldDefinition $field): bool => $field->isAvailableInContext($context)
+            $this->load()['fields'],
+            static fn (FieldDefinition $field): bool => ($context === null || $field->isAvailableInContext($context))
+                && ($usage === null || $field->isAvailableForUsage($usage))
         );
     }
 
@@ -242,12 +242,10 @@ final class DataDictionary
                 type: $type,
                 column: $column,
                 expression: $expression,
-                contexts: array_map(
-                    static fn (string $contextValue): Context => Context::from($contextValue),
-                    $definition['contexts'] ?? []
-                ),
+                contexts: $this->buildContexts((string) $code, $definition['contexts'] ?? null),
                 operators: $definition['operators'] ?? null,
                 valuesQuery: $valuesQuery,
+                usages: $this->buildUsages((string) $code, $definition['usage'] ?? null),
             );
 
             //A :value expression consumes the entered value itself: the field must
@@ -265,5 +263,78 @@ final class DataDictionary
         }
 
         return $fields;
+    }
+
+    /**
+     * Contexts of a field: a list of Context values, GLOBAL (every context) when
+     * absent or empty.
+     *
+     * @return Context[]
+     */
+    private function buildContexts(string $code, mixed $rawContexts): array
+    {
+        if ($rawContexts === null || $rawContexts === []) {
+            return [Context::GLOBAL_SCOPE];
+        }
+
+        if (!\is_array($rawContexts)) {
+            throw new \InvalidArgumentException(sprintf(
+                'QueryBuilder dictionary: field "%s" expects a list of contexts in "contexts".',
+                $code
+            ));
+        }
+
+        $contexts = [];
+
+        foreach ($rawContexts as $contextValue) {
+            $context = \is_string($contextValue) ? Context::tryFrom($contextValue) : null;
+
+            if ($context === null) {
+                throw new \InvalidArgumentException(sprintf(
+                    'QueryBuilder dictionary: field "%s" has unknown context "%s" (expected one of %s).',
+                    $code,
+                    \is_scalar($contextValue) ? (string) $contextValue : get_debug_type($contextValue),
+                    implode(', ', array_map(static fn (Context $case): string => $case->value, Context::cases()))
+                ));
+            }
+
+            $contexts[] = $context;
+        }
+
+        return array_values(array_unique($contexts, \SORT_REGULAR));
+    }
+
+    /**
+     * Editors a field is offered in: a list of FieldDefinition::USAGE_* values,
+     * both when absent or empty.
+     *
+     * @return string[]
+     */
+    private function buildUsages(string $code, mixed $rawUsages): array
+    {
+        if ($rawUsages === null || $rawUsages === []) {
+            return FieldDefinition::USAGES;
+        }
+
+        if (!\is_array($rawUsages)) {
+            throw new \InvalidArgumentException(sprintf(
+                'QueryBuilder dictionary: field "%s" expects a list in "usage" (values: %s).',
+                $code,
+                implode(', ', FieldDefinition::USAGES)
+            ));
+        }
+
+        foreach ($rawUsages as $usage) {
+            if (!\is_string($usage) || !\in_array($usage, FieldDefinition::USAGES, true)) {
+                throw new \InvalidArgumentException(sprintf(
+                    'QueryBuilder dictionary: field "%s" has unknown usage "%s" (expected one of %s).',
+                    $code,
+                    \is_scalar($usage) ? (string) $usage : get_debug_type($usage),
+                    implode(', ', FieldDefinition::USAGES)
+                ));
+            }
+        }
+
+        return array_values(array_unique($rawUsages));
     }
 }
