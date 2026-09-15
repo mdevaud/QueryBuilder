@@ -4,14 +4,14 @@ All notable changes to this module are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.0.0] 2026-09-16
 
 Port of the module to Thelia 3. The Thelia 2 line (1.0.0 to 1.2.0) lived in the project the module was written for and is not published.
 
 ### Added
 - Back-office screens on the default-twig theme (Twig, Bootstrap 5): rule list, rule in three steps, action screen, entry in the Tools menu. Screens and menu entry follow the right granted on the module itself in the administrator profiles.
 - On the rule screen, an (i) mark after each action name opens a popover reading the product selection of the action, the way the action screen does above its editor, followed by its discount rate, free shipping and stackable options when set.
-- Condition editor provided by `openstudio/query-builder-bundle` (`QueryBuilderType`, `native` processor, per-field operators), with a readable summary of the tree, a condition counter and the hook grid filtered by context.
+- Condition editor provided by `openstudio/query-builder-bundle` (`QueryBuilderType`, `native` processor, per-field operators), with a readable summary of the tree, a condition counter and the hook grid filtered by context. The editor script and stylesheet are loaded on the rule and action screens only, never on the rule list nor on the rest of the back-office.
 - Front rendering through the `theme_hook()` points of Flexy (`ThemeHookInterface`) with a product list template based on the Flexy cross-selling component, overridable by the theme.
 - Twig function `query_builder_products()` returning the hook result (ids, offers, actions).
 - API Platform resource `GET /api/front/query_builder/products/{hookCode}` with the product resources embedded, and two front addons: `QueryBuilderCartDiscount` on the cart, `QueryBuilderProductOffer` on the products.
@@ -28,7 +28,8 @@ Port of the module to Thelia 3. The Thelia 2 line (1.0.0 to 1.2.0) lived in the 
 - Flexy hook codes declared per context in the base dictionary.
 - English and French translations of every label (`querybuilder` and `querybuilder.bo.default-twig` domains).
 - Unit tests (SQL compiler, dictionary, discount arithmetic), a module activation integration test and a GitHub Actions workflow running them on a fresh shop.
-- `composer install` at the module root installs the dev dependencies (`thelia/core`, PHPUnit) for the unit suite and static analysis; the module `vendor/` directory is excluded from the service discovery so a checkout linked into a shop keeps booting it.
+- `composer install` at the module root installs the dev dependencies (`thelia/core`, PHPUnit) for the unit suite and static analysis; the module `vendor/` directory and the Propel models are excluded from the service discovery so a checkout linked into a shop keeps booting it.
+- Activation is refused on a Thelia 2 core (or a core whose version cannot be read) with a message naming the module version, the minimum core version and the running one; the `<thelia>` bound of `module.xml` alone is not enforced by every 2.x core.
 
 ### Changed
 - Requires PHP 8.3, Thelia 3 and `openstudio/query-builder-bundle` ^1.1.
@@ -43,4 +44,4 @@ Port of the module to Thelia 3. The Thelia 2 line (1.0.0 to 1.2.0) lived in the 
 - The `/query_builder/products/{hookCode}` Symfony route, replaced by the API Platform resource.
 - The `product.top` and `product.bottom` `BaseHook` front hooks, replaced by the theme hook implementation.
 
-[Unreleased]: https://github.com/thelia-modules/QueryBuilder/tree/release/2.0.0
+[2.0.0]: https://github.com/thelia-modules/QueryBuilder/releases/tag/2.0.0
