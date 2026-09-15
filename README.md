@@ -46,7 +46,7 @@ The form type checks every submitted tree against the declared fields and per-fi
 
 ### JavaScript build
 
-The editor script (React, react-querybuilder, the Stimulus controller of the bundle and the three controllers of the module) is built with webpack from `Resources/` into `templates/backOffice/default-twig/assets/dist/`, which is committed and served by the Thelia asset resolver on the module pages only. To rebuild it:
+The editor script (React, react-querybuilder, the Stimulus controller of the bundle and the three controllers of the module) is built with webpack from `Resources/` into `templates/backOffice/default-twig/assets/dist/`, which is committed and served by the Thelia asset resolver on the rule and action screens only (never on the rule list). To rebuild it:
 
 ```bash
 cd Resources

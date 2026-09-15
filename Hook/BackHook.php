@@ -16,11 +16,15 @@ use Thelia\Tools\URL;
 
 /**
  * Back-office integration: the entry in the tools menu, and the editor assets
- * (built in templates/backOffice/default-twig/assets/dist) on the module pages only.
+ * (built in templates/backOffice/default-twig/assets/dist) on the rule and action
+ * screens only, never on the rule list nor on the rest of the back-office.
  */
 class BackHook extends BaseHook
 {
     private const ADMIN_PATH_PREFIX = '/admin/query_builder';
+
+    //The editor lives on the rule and action screens only: the list needs none of it
+    private const EDITOR_PATH_PREFIX = self::ADMIN_PATH_PREFIX.'/rule/';
 
     //Constructor injection: a #[Required] property would stay null on a module hook
     public function __construct(
@@ -65,7 +69,7 @@ class BackHook extends BaseHook
 
     public function onMainHeadCss(HookRenderEvent $event): void
     {
-        if (!$this->isModulePage()) {
+        if (!$this->isEditorPage()) {
             return;
         }
 
@@ -74,15 +78,15 @@ class BackHook extends BaseHook
 
     public function onMainFooterJs(HookRenderEvent $event): void
     {
-        if (!$this->isModulePage()) {
+        if (!$this->isEditorPage()) {
             return;
         }
 
         $event->add($this->addJS('assets/dist/query-builder-admin.js', ['defer' => 'defer']));
     }
 
-    private function isModulePage(): bool
+    private function isEditorPage(): bool
     {
-        return str_starts_with($this->getRequest()?->getPathInfo() ?? '', self::ADMIN_PATH_PREFIX);
+        return str_starts_with($this->getRequest()?->getPathInfo() ?? '', self::EDITOR_PATH_PREFIX);
     }
 }
