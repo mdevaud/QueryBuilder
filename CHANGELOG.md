@@ -18,7 +18,7 @@ Port of the module to Thelia 3. The Thelia 2 line (1.0.0 to 1.2.0) lived in the 
 - Product discounts applied on the cart lines (promotion columns), with the stackable and non-stackable policies against a catalog promotion.
 - Product discounts shown on the product page (`PseByProductEvent`), in the listings and on the front product resources (`ModelToResourceEvent`): the discounted product is read as a promotion at the discounted price, computed with the same policy as the cart lines.
 - Discount label shown in the cart discount fragment of the checkout pages, which now lists the product discounts charged on the cart lines.
-- Free shipping on `CART_SET_POSTAGE` and through the postage estimator of the core.
+- Free shipping on `CART_SET_POSTAGE` and through the postage estimator of the core; the delivery options of the delivery step are priced at zero as well, so the option cards and the summary agree.
 - Cart discount fragment shown on the checkout pages (`checkout.top`, `cart.bottom`).
 - Dictionary fields for the cart products total (`:cart_total`) and the delivery country (`:delivery_country_id`); `--cart-total` and `--delivery-country` options on the debug commands.
 - Flexy hook codes declared per context in the base dictionary.

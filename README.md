@@ -132,7 +132,7 @@ Parameters: `cart_discount_rate` (percentage of the cart products total, taxes i
 
 The amount goes through the core discount channel (`cart.discount`, then the order), without the coupon machinery: a coupon and a rule discount coexist and their amounts add up. The module listens to the cart events at priority 1, right after the core reset the column with the coupons, and keeps a per-request ledger so that nested cart events never add the amount twice.
 
-Free shipping follows the coupon path of the core: the cart postage is cleared on `CART_SET_POSTAGE` (priority 133) and the postage estimator of the core is told the shipping is free. The prices of the delivery options are left as they are, as for a coupon. The legacy `ORDER_SET_POSTAGE` point is kept for a front still going through the order session.
+Free shipping follows the coupon path of the core: the cart postage is cleared on `CART_SET_POSTAGE` (priority 133) and the postage estimator of the core is told the shipping is free. The delivery options listed on the delivery step (`MODULE_DELIVERY_GET_OPTIONS`) are priced by each delivery module; once the modules have answered (priority -128) the module sets their price to zero so the option cards announce the free delivery the summary shows. The legacy `ORDER_SET_POSTAGE` point is kept for a front still going through the order session.
 
 ## Extension points
 

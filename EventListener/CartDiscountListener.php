@@ -6,10 +6,12 @@ namespace QueryBuilder\EventListener;
 
 use QueryBuilder\Service\CartDiscountCalculator;
 use QueryBuilder\Service\CartDiscountLedger;
+use QueryBuilder\Service\DeliveryModuleOptionPostageClearer;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\EventDispatcher\Event;
+use Thelia\Api\Bridge\Propel\Event\DeliveryModuleOptionEvent;
 use Thelia\Core\Event\Cart\CartCheckoutEvent;
 use Thelia\Core\Event\Cart\CartEvent;
 use Thelia\Core\Event\Order\OrderEvent;
@@ -39,6 +41,11 @@ use Thelia\Model\Event\AddressEvent;
  * setter (128), clearing the cart postage and stopping the propagation exactly
  * like Coupon::forceFreePostage. The legacy ORDER_SET_POSTAGE point is kept for
  * a Smarty front still going through the order session.
+ *
+ * The delivery options listed on the delivery step (MODULE_DELIVERY_GET_OPTIONS,
+ * one event per module, the module answers at 128/129) carry the price each
+ * module computed: once every module has answered, a rule offering the shipping
+ * zeroes them so the card and the summary announce the same free delivery.
  */
 final readonly class CartDiscountListener implements EventSubscriberInterface
 {
@@ -47,6 +54,7 @@ final readonly class CartDiscountListener implements EventSubscriberInterface
         private EventDispatcherInterface $eventDispatcher,
         private CartDiscountCalculator $cartDiscountCalculator,
         private CartDiscountLedger $cartDiscountLedger,
+        private DeliveryModuleOptionPostageClearer $deliveryModuleOptionPostageClearer,
     ) {
     }
 
@@ -62,6 +70,7 @@ final readonly class CartDiscountListener implements EventSubscriberInterface
             AddressEvent::POST_UPDATE => ['updateCartDiscount', 1],
             TheliaEvents::CART_SET_POSTAGE => ['removeCartPostageWhenFreeShipping', 133],
             TheliaEvents::ORDER_SET_POSTAGE => ['removeOrderPostageWhenFreeShipping', 133],
+            TheliaEvents::MODULE_DELIVERY_GET_OPTIONS => ['removeDeliveryOptionsPostageWhenFreeShipping', -128],
         ];
     }
 
@@ -127,6 +136,22 @@ final readonly class CartDiscountListener implements EventSubscriberInterface
         } catch (\Throwable $throwable) {
             //Ne jamais bloquer la commande pour des frais de port offerts
             Tlog::getInstance()->addError('QueryBuilder: free shipping rule not applied on the cart: ' . $throwable->getMessage());
+        }
+    }
+
+    /** Delivery step: the options a module lists are priced by the module, whatever the cart postage. */
+    public function removeDeliveryOptionsPostageWhenFreeShipping(DeliveryModuleOptionEvent $event): void
+    {
+        try {
+            $cart = $event->getCart();
+
+            if (!$cart instanceof Cart || !$this->cartDiscountCalculator->resolve($cart)?->freeShipping) {
+                return;
+            }
+
+            $this->deliveryModuleOptionPostageClearer->clear($event->getDeliveryModuleOptions());
+        } catch (\Throwable $throwable) {
+            Tlog::getInstance()->addError('QueryBuilder: free shipping rule not applied on the delivery options: ' . $throwable->getMessage());
         }
     }
 
