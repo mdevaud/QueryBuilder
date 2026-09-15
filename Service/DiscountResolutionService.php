@@ -45,6 +45,9 @@ final class DiscountResolutionService
     /** @var array<string, int[]|null> */
     private array $memoizedActionProductIds = [];
 
+    /** @var array<string, array<int, array{0: QueryBuilderRule, 1: QueryBuilderAction[]}>> */
+    private array $memoizedEligibleRules = [];
+
     public function __construct(
         private readonly RuleEngine $ruleEngine,
         private readonly SqlBuilder $sqlBuilder,
@@ -306,10 +309,19 @@ final class DiscountResolutionService
      * Active rules carrying at least one active ApplyDiscount action, filtered
      * on their eligibility (rule condition tree). Rule hooks are irrelevant
      * here: a discount is resolved wherever a price is needed, not on a hook.
+     * Memoized per context: a listing resolves one product at a time.
      *
      * @return array<int, array{0: QueryBuilderRule, 1: QueryBuilderAction[]}>
      */
     private function getDiscountActionsByEligibleRule(RuntimeContext $runtimeContext): array
+    {
+        $memoKey = md5(serialize($runtimeContext));
+
+        return $this->memoizedEligibleRules[$memoKey] ??= $this->resolveDiscountActionsByEligibleRule($runtimeContext);
+    }
+
+    /** @return array<int, array{0: QueryBuilderRule, 1: QueryBuilderAction[]}> */
+    private function resolveDiscountActionsByEligibleRule(RuntimeContext $runtimeContext): array
     {
         $actionsByRuleId = [];
 

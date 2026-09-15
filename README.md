@@ -81,6 +81,8 @@ The product list is rendered with `templates/frontOffice/default/QueryBuilder/pr
 
 The cart discount granted by a rule is shown on the checkout pages by `cart-discount.html.twig` (same override path), once per request, on the `checkout.top` and `cart.bottom` points.
 
+A product discount shows up wherever the theme prices a product, without any template work: the product page reads its sale elements from the core access service (`PseByProductEvent`) and the listings, the cross-selling strips and the search read them from the front API (`ModelToResourceEvent`); the module answers both with a promotion at the discounted price, so the theme renders its usual struck original price and discounted price. The label of the discount is shown in the `cart-discount.html.twig` fragment above, which lists the labelled product discounts charged on the cart lines with the products they apply to; the product page shows the discounted price only.
+
 For a custom rendering, the Twig function returns the same structure as the API:
 
 ```twig
@@ -122,7 +124,7 @@ The discount applies on the cart lines: at every cart change, customer login or 
 
 The tree of a discount action is evaluated on every surface, cart events included. Conditions that describe a recommendation ("product in the cart = false") cancel the discount as soon as the product enters the cart: keep the tree of a discount on stable criteria (brand, category, visibility).
 
-The catalog prices shown on listings and product pages are not changed by this module: the offer is exposed through the `QueryBuilderProductOffer` addon for the front to display.
+The same discount is shown on the product page, in the listings and on the front product resources (`productSaleElements[].promo` and `promoPrice`), computed from the catalog prices of the visit (currency, customer discount) with the same policy as the cart lines, so the price announced is the price charged. The product page resolves the rules with the displayed product as current product; the listings and the API resources without one. The `QueryBuilderProductOffer` addon still exposes the rate and label for a decoupled front. The label is displayed in the cart discount fragment of the checkout pages (see Front).
 
 ### ApplyCartDiscount
 
