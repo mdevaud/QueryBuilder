@@ -13,10 +13,12 @@ Only the fields of a data dictionary and a closed list of operators are accepted
 ## Installation
 
 ```bash
-composer require thelia/query-builder-module
+composer require thelia/query-builder-module --with-all-dependencies
 php Thelia module:activate QueryBuilder
 php bin/console cache:clear
 ```
+
+`--with-all-dependencies` is needed on a fresh Thelia 3 shop: its lock file pins `thecodingmachine/safe` at v3, while `openstudio/query-builder-bundle` 1.1 requires `^2.5`. Composer downgrades the package (every other user of it in the shop accepts v2).
 
 Symfony Flex registers the bundle in `config/bundles.php`. If the condition editor stays empty in the back-office, check that the file contains `OpenStudio\QueryBuilderBundle\OpenStudioQueryBuilderBundle::class => ['all' => true]`.
 
