@@ -28,6 +28,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Thelia\Controller\Admin\BaseAdminController;
 use Thelia\Core\HttpFoundation\Request;
+use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Template\ParserContext;
 use Thelia\Core\Translation\Translator;
 use Thelia\Form\BaseForm;
@@ -46,6 +47,10 @@ class ActionController extends BaseAdminController
         ActionRegistry $actionRegistry,
         EventDispatcherInterface $eventDispatcher,
     ): RedirectResponse|Response {
+        if (null !== $response = $this->denyUnlessGranted(AccessManager::CREATE)) {
+            return $response;
+        }
+
         $form = $this->createForm(ActionForm::getName());
 
         try {
@@ -87,6 +92,10 @@ class ActionController extends BaseAdminController
         FieldsBuilder $fieldsBuilder,
         EditorLabels $editorLabels,
     ): Response {
+        if (null !== $response = $this->denyUnlessGranted(AccessManager::VIEW)) {
+            return $response;
+        }
+
         $rule = QueryBuilderRuleQuery::create()->findOneById($ruleId);
         $action = QueryBuilderActionQuery::create()->filterByRuleId($ruleId)->findOneById($actionId);
 
@@ -157,6 +166,10 @@ class ActionController extends BaseAdminController
         SuggestionService $suggestionService,
         EventDispatcherInterface $eventDispatcher,
     ): RedirectResponse|Response {
+        if (null !== $response = $this->denyUnlessGranted(AccessManager::UPDATE)) {
+            return $response;
+        }
+
         $form = $this->createForm(ActionForm::getName());
 
         try {
@@ -216,7 +229,11 @@ class ActionController extends BaseAdminController
         int $ruleId,
         int $actionId,
         EventDispatcherInterface $eventDispatcher,
-    ): RedirectResponse {
+    ): Response {
+        if (null !== $response = $this->denyUnlessGranted(AccessManager::UPDATE)) {
+            return $response;
+        }
+
         $tokenProvider->checkToken((string) $request->query->get('_token'));
 
         $action = QueryBuilderActionQuery::create()->filterByRuleId($ruleId)->findOneById($actionId);
@@ -236,7 +253,11 @@ class ActionController extends BaseAdminController
         int $ruleId,
         int $actionId,
         EventDispatcherInterface $eventDispatcher,
-    ): RedirectResponse {
+    ): Response {
+        if (null !== $response = $this->denyUnlessGranted(AccessManager::DELETE)) {
+            return $response;
+        }
+
         $tokenProvider->checkToken((string) $request->query->get('_token'));
 
         $action = QueryBuilderActionQuery::create()->filterByRuleId($ruleId)->findOneById($actionId);
@@ -256,6 +277,17 @@ class ActionController extends BaseAdminController
         $this->addFlash('danger', $errorMessage);
 
         return $this->generateErrorRedirect($form);
+    }
+
+    /**
+     * Every screen of the module, in reading as in writing, is reserved to the
+     * administrators granted on the module itself: the core only checks that
+     * an administrator is logged in. The "admin.module" resource is not required,
+     * it guards the module management screens, not the screens of this module.
+     */
+    private function denyUnlessGranted(string $access): ?Response
+    {
+        return $this->checkAuth([], QueryBuilder::getModuleCode(), $access);
     }
 
     private function trans(string $id): string

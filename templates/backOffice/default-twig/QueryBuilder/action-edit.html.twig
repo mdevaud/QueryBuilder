@@ -123,9 +123,11 @@
             </div>
 
             <div class="qb-form-actions sticky-bottom bg-body py-3 border-top d-flex align-items-center gap-2">
-                <button type="submit" class="btn btn-primary" data-testid="qb-action-submit">
-                    <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save the action'|trans({}, d) }}
-                </button>
+                {% if is_granted('UPDATE', { module: 'QueryBuilder' }) %}
+                    <button type="submit" class="btn btn-primary" data-testid="qb-action-submit">
+                        <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save the action'|trans({}, d) }}
+                    </button>
+                {% endif %}
                 <a href="{{ rule_url }}" class="btn btn-outline-secondary">{{ 'Back to the rule'|trans({}, d) }}</a>
             </div>
         </form>

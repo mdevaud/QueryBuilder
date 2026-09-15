@@ -32,7 +32,38 @@ if ($autoload === null) {
     exit(1);
 }
 
+// The core bootstrap (autoloaded with the vendor) derives THELIA_ROOT from its own
+// location, which is vendor/thelia/ in a shop installed by Composer: the shop defines
+// the constants in its root bootstrap.php before loading the vendor, so do the same.
+$shopBootstrap = dirname($autoload, 2) . '/bootstrap.php';
+
+if (is_file($shopBootstrap)) {
+    require $shopBootstrap;
+}
+
 require $autoload;
+
+// The shop kernel reads its parameters from the environment (DEFAULT_URI, the database):
+// load the shop .env the way the shop test bootstrap does. In test mode Dotenv skips
+// .env.local by design, where the database access of a development shop usually lives:
+// bridge the DATABASE_* variables from it when nothing else defined them.
+$shopEnvFile = dirname($autoload, 2) . '/.env';
+
+if (is_file($shopEnvFile) && class_exists(\Symfony\Component\Dotenv\Dotenv::class)) {
+    (new \Symfony\Component\Dotenv\Dotenv())->bootEnv($shopEnvFile);
+
+    $shopEnvLocalFile = $shopEnvFile . '.local';
+
+    if (empty($_SERVER['DATABASE_HOST']) && is_file($shopEnvLocalFile)) {
+        $localVariables = (new \Symfony\Component\Dotenv\Dotenv())->parse((string) file_get_contents($shopEnvLocalFile));
+
+        foreach (['DATABASE_HOST', 'DATABASE_PORT', 'DATABASE_NAME', 'DATABASE_USER', 'DATABASE_PASSWORD'] as $key) {
+            if (isset($localVariables[$key]) && empty($_SERVER[$key])) {
+                $_SERVER[$key] = $_ENV[$key] = $localVariables[$key];
+            }
+        }
+    }
+}
 
 // The module and its tests, when the shop autoloader does not map them already
 // (module checked out outside local/modules). Longest prefix first.

@@ -38,6 +38,8 @@ A rule runs when one of its hooks is called and its condition tree matches the c
 
 The screens live under `/admin/query_builder`: the list of rules, a rule screen in three steps (identification, context and hooks, conditions) followed by its actions, and an action screen with the parameters of the selected action code.
 
+The screens and the Tools menu entry follow the right granted on the module itself (Configuration > Administrators > Profiles, module rights): an administrator whose profile has no view right on QueryBuilder gets no menu entry and a 403 on every screen. Reading requires the view right, saving the create or update right, deleting the delete right. No other resource is required, in particular not the "Modules" resource, which guards the module management screens.
+
 The condition editor is the `QueryBuilderType` form type of the bundle, configured with the `native` processor: the stored tree is the react-querybuilder structure (`combinator`, `not`, `rules` with `field`, `operator`, `value`), without the ids the editor keeps for itself. The fields offered depend on the context of the rule and on the editor (the trigger conditions of the rule, or the product selection of an action); changing the context drops the conditions on fields the new context does not offer. Field labels are prefixed with their group (the part of the field code before the first underscore, translated), so the alphabetical list gathers the product, cart, customer and context fields. A readable summary of the tree is shown above the editor; on the rule screen the same reading of each action selection opens in a popover from the (i) mark after the action name.
 
 The form type checks every submitted tree against the declared fields and per-field operators; the module then checks the fields against the context of the rule and the editor they were posted from (`SqlBuilder::validateTree()`). A tree naming a field or an operator outside the dictionary is refused at save time and at run time.
@@ -187,7 +189,7 @@ composer install
 php vendor/bin/phpunit -c phpunit.xml.dist --testsuite unit
 ```
 
-`THELIA_VENDOR_AUTOLOAD=/path/to/vendor/autoload.php` points the test bootstrap at another vendor. A checkout linked into a shop by symlink (Composer `path` repository) needs it set to the shop vendor for the integration suite, otherwise its own vendor is picked.
+`THELIA_VENDOR_AUTOLOAD=/path/to/vendor/autoload.php` points the test bootstrap at another vendor. A checkout linked into a shop by symlink (Composer `path` repository) needs it set to the shop vendor for the integration suite, otherwise its own vendor is picked. When the vendor belongs to a shop, the bootstrap also loads the shop `bootstrap.php` (Thelia path constants) and `.env` before booting the kernel, and bridges the `DATABASE_*` variables from `.env.local` when nothing else defines them.
 
 `.github/workflows/ci.yml` installs a fresh `thelia/thelia-project` shop, requires the module from the checkout and runs both suites.
 

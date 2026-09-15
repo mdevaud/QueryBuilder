@@ -5,9 +5,13 @@ declare(strict_types=1);
 namespace QueryBuilder\Hook;
 
 use QueryBuilder\QueryBuilder;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\Event\Hook\HookRenderBlockEvent;
 use Thelia\Core\Event\Hook\HookRenderEvent;
 use Thelia\Core\Hook\BaseHook;
+use Thelia\Core\Security\AccessManager;
+use Thelia\Core\Security\SecurityContext;
+use Thelia\Core\Template\ParserResolver;
 use Thelia\Tools\URL;
 
 /**
@@ -17,6 +21,15 @@ use Thelia\Tools\URL;
 class BackHook extends BaseHook
 {
     private const ADMIN_PATH_PREFIX = '/admin/query_builder';
+
+    //Constructor injection: a #[Required] property would stay null on a module hook
+    public function __construct(
+        private readonly SecurityContext $securityContext,
+        ?EventDispatcherInterface $dispatcher = null,
+        ?ParserResolver $parserResolver = null,
+    ) {
+        parent::__construct($dispatcher, $parserResolver);
+    }
 
     public static function getSubscribedHooks(): array
     {
@@ -35,6 +48,13 @@ class BackHook extends BaseHook
 
     public function onMainTopMenuTools(HookRenderBlockEvent $event): void
     {
+        //The controllers answer 403 to an administrator without the module right: no entry for them.
+        //The right is the one granted on the module itself, not the "admin.module" resource, which
+        //guards the module management screens and is not held by a profile limited to this module.
+        if (!$this->securityContext->isGranted(['ADMIN'], [], [QueryBuilder::getModuleCode()], [AccessManager::VIEW])) {
+            return;
+        }
+
         $event->add([
             'id' => 'tools_menu_query_builder',
             'class' => '',

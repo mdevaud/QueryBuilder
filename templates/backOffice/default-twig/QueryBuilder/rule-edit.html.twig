@@ -157,9 +157,11 @@
             </div>
 
             <div class="qb-form-actions sticky-bottom py-4 border-top bg-white d-flex align-items-center gap-2">
-                <button type="submit" class="btn btn-primary" data-testid="qb-rule-submit">
-                    <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save the rule'|trans({}, d) }}
-                </button>
+                {% if is_granted('UPDATE', { module: 'QueryBuilder' }) %}
+                    <button type="submit" class="btn btn-primary" data-testid="qb-rule-submit">
+                        <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save the rule'|trans({}, d) }}
+                    </button>
+                {% endif %}
                 <a href="{{ path('admin_query_builder_list') }}" class="btn btn-outline-secondary">{{ 'Back to the list'|trans({}, d) }}</a>
                 <span class="small text-body-secondary ms-3">{{ 'The actions below are saved separately.'|trans({}, d) }}</span>
             </div>
@@ -174,27 +176,29 @@
             <div class="card-body">
                 <p class="text-body-secondary">{{ 'What the rule produces when it triggers: each action has its own product selection and parameters.'|trans({}, d) }}</p>
 
-                <form method="post" action="{{ path('admin_query_builder_action_create', { ruleId: rule.id }) }}" class="row g-2 align-items-end mb-3" data-testid="qb-action-create">
-                    {{ form_widget(action_form._token) }}
-                    <input type="hidden" name="{{ field_name(action_form.error_url) }}" value="{{ edit_url }}">
-                    <div class="col-md-5">
-                        <label class="form-label" for="qb-new-action-name">{{ 'Name of the new action'|trans({}, d) }}</label>
-                        <input type="text" id="qb-new-action-name" name="{{ field_name(action_form.name) }}" class="form-control" required>
-                    </div>
-                    <div class="col-md-4">
-                        <label class="form-label" for="qb-new-action-code">{{ 'Predefined action'|trans({}, d) }}</label>
-                        <select id="qb-new-action-code" name="{{ field_name(action_form.code) }}" class="form-select">
-                            {% for available_action in available_actions %}
-                                <option value="{{ available_action.code }}">{{ available_action.label }} ({{ available_action.type }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ 'Add an action'|trans({}, d) }}
-                        </button>
-                    </div>
-                </form>
+                {% if is_granted('CREATE', { module: 'QueryBuilder' }) %}
+                    <form method="post" action="{{ path('admin_query_builder_action_create', { ruleId: rule.id }) }}" class="row g-2 align-items-end mb-3" data-testid="qb-action-create">
+                        {{ form_widget(action_form._token) }}
+                        <input type="hidden" name="{{ field_name(action_form.error_url) }}" value="{{ edit_url }}">
+                        <div class="col-md-5">
+                            <label class="form-label" for="qb-new-action-name">{{ 'Name of the new action'|trans({}, d) }}</label>
+                            <input type="text" id="qb-new-action-name" name="{{ field_name(action_form.name) }}" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="qb-new-action-code">{{ 'Predefined action'|trans({}, d) }}</label>
+                            <select id="qb-new-action-code" name="{{ field_name(action_form.code) }}" class="form-select">
+                                {% for available_action in available_actions %}
+                                    <option value="{{ available_action.code }}">{{ available_action.label }} ({{ available_action.type }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ 'Add an action'|trans({}, d) }}
+                            </button>
+                        </div>
+                    </form>
+                {% endif %}
 
                 {% if actions is empty %}
                     <div class="alert alert-info mb-0">{{ 'No action: the rule produces nothing for now.'|trans({}, d) }}</div>
@@ -219,7 +223,11 @@
                             {% for action in actions %}
                                 <tr data-row-id="{{ action.id }}">
                                     <td>
-                                        <a href="{{ path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) }}" class="fw-semibold">{{ action.name }}</a>
+                                        {% if is_granted('VIEW', { module: 'QueryBuilder' }) %}
+                                            <a href="{{ path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) }}" class="fw-semibold">{{ action.name }}</a>
+                                        {% else %}
+                                            <span>{{ action.name }}</span>
+                                        {% endif %}
                                         {# Parameters worth reading from here: the discount rate, and the options only when on #}
                                         {% set details = [] %}
                                         {% set rate = action.parameters.discount_rate ?? action.parameters.cart_discount_rate ?? null %}
@@ -246,23 +254,35 @@
                                     <td><code>{{ action.code }}</code></td>
                                     <td><span class="badge text-bg-secondary">{{ action.type }}</span></td>
                                     <td class="text-center">
-                                        <form method="post" action="{{ token_url('admin_query_builder_action_toggle', { ruleId: rule.id, actionId: action.id }) }}" class="d-inline">
+                                        {% if is_granted('UPDATE', { module: 'QueryBuilder' }) %}
+                                            <form method="post" action="{{ token_url('admin_query_builder_action_toggle', { ruleId: rule.id, actionId: action.id }) }}" class="d-inline">
+                                                {% if action.activate %}
+                                                    <button type="submit" class="btn btn-sm btn-success" title="{{ 'Click to deactivate'|trans({}, d) }}">{{ 'Active'|trans({}, d) }}</button>
+                                                {% else %}
+                                                    <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ 'Click to activate'|trans({}, d) }}">{{ 'Inactive'|trans({}, d) }}</button>
+                                                {% endif %}
+                                            </form>
+                                        {% else %}
                                             {% if action.activate %}
-                                                <button type="submit" class="btn btn-sm btn-success" title="{{ 'Click to deactivate'|trans({}, d) }}">{{ 'Active'|trans({}, d) }}</button>
+                                                <span class="badge text-bg-success">{{ 'Active'|trans({}, d) }}</span>
                                             {% else %}
-                                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="{{ 'Click to activate'|trans({}, d) }}">{{ 'Inactive'|trans({}, d) }}</button>
+                                                <span class="badge text-bg-secondary">{{ 'Inactive'|trans({}, d) }}</span>
                                             {% endif %}
-                                        </form>
+                                        {% endif %}
                                     </td>
                                     <td class="text-end text-nowrap">
-                                        <a href="{{ path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) }}" class="btn btn-sm btn-outline-primary" title="{{ 'Edit'|trans({}, d) }}">
-                                            <i class="bi bi-pencil" aria-hidden="true"></i>
-                                        </a>
-                                        <form method="post" action="{{ token_url('admin_query_builder_action_delete', { ruleId: rule.id, actionId: action.id }) }}" class="d-inline" onsubmit="return confirm({{ 'Delete this action?'|trans({}, d)|json_encode|e('html_attr') }});">
-                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ 'Delete'|trans({}, d) }}">
-                                                <i class="bi bi-trash" aria-hidden="true"></i>
-                                            </button>
-                                        </form>
+                                        {% if is_granted('VIEW', { module: 'QueryBuilder' }) %}
+                                            <a href="{{ path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) }}" class="btn btn-sm btn-outline-primary" title="{{ 'Edit'|trans({}, d) }}">
+                                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                                            </a>
+                                        {% endif %}
+                                        {% if is_granted('DELETE', { module: 'QueryBuilder' }) %}
+                                            <form method="post" action="{{ token_url('admin_query_builder_action_delete', { ruleId: rule.id, actionId: action.id }) }}" class="d-inline" onsubmit="return confirm({{ 'Delete this action?'|trans({}, d)|json_encode|e('html_attr') }});">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ 'Delete'|trans({}, d) }}">
+                                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                                </button>
+                                            </form>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
