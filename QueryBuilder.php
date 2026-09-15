@@ -75,6 +75,8 @@ class QueryBuilder extends BaseModule
             ->exclude([
                 __DIR__ . '/I18n/*',
                 __DIR__ . '/Config/**/*',
+                // Propel models and queries: instantiated by the ORM, never services.
+                __DIR__ . '/Model/*',
                 __DIR__ . '/templates/**/*',
                 __DIR__ . '/tests/*',
                 // Dev dependencies of a checkout linked into a shop: not module classes.
