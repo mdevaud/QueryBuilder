@@ -34,16 +34,24 @@ final class ModuleActivationTest extends IntegrationTestCase
             self::markTestSkipped('The QueryBuilder module is not registered in the test database.');
         }
 
+        // createInstance() hands back a bare module: activate() reaches for the
+        // cache directory, the dispatcher and the kernel through the container,
+        // the way Thelia\Action\Module wires it before toggling a module.
         $instance = $module->createInstance();
+        $instance->setContainer(static::getContainer());
 
         if ((int) $module->getActivate() === BaseModule::IS_ACTIVATED) {
             $instance->deActivate($module);
         }
 
+        // Counted rather than asserted to zero: the suite also runs on a shop that
+        // already holds rules, and what is under test is that activation adds none.
+        $rulesBeforeActivation = QueryBuilderRuleQuery::create()->count();
+
         $instance->activate($module);
         self::assertSame(BaseModule::IS_ACTIVATED, (int) $this->reloadModule()->getActivate());
         $this->assertTablesExist();
-        self::assertSame(0, QueryBuilderRuleQuery::create()->count(), 'a fresh activation ships no rule');
+        self::assertSame($rulesBeforeActivation, QueryBuilderRuleQuery::create()->count(), 'the activation ships no rule of its own');
 
         $instance->deActivate($this->reloadModule());
         self::assertSame(BaseModule::IS_NOT_ACTIVATED, (int) $this->reloadModule()->getActivate());
@@ -53,6 +61,7 @@ final class ModuleActivationTest extends IntegrationTestCase
         $instance->activate($this->reloadModule());
         self::assertSame(BaseModule::IS_ACTIVATED, (int) $this->reloadModule()->getActivate());
         $this->assertTablesExist();
+        self::assertSame($rulesBeforeActivation, QueryBuilderRuleQuery::create()->count(), 'the second activation replays no SQL');
     }
 
     private function assertTablesExist(string $message = ''): void
