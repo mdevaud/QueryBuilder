@@ -1,0 +1,396 @@
+# Base data dictionary of the QueryBuilder module (Thelia core tables only).
+# Any active module can expose its own Config/query_builder.yml to add or
+# override joins/fields, bind hooks to contexts, or disable base fields.
+#
+# Labels (fields and hooks) are translation keys of the "querybuilder" domain
+# (I18n/<locale>.php of this module); a key without translation is shown as is.
+#
+# joins.<table>.from  : source "table.column" of the join (mandatory)
+# joins.<table>.to    : destination column in <table> (default: id)
+# joins.<table>.type  : INNER (default) | LEFT | RIGHT
+# joins.<table>.on    : extra ON clause, may reference runtime placeholders (:locale, :customer_id...)
+# joins.<table>.multivalued : true when the join can yield several rows per product (1-N).
+#                             MANDATORY on such joins: comparisons on fields reached through them
+#                             then compile to correlated EXISTS/NOT EXISTS subqueries, so that
+#                             notIn/!=/notBetween/doesNotContain exclude the whole product instead
+#                             of matching another joined row. Propagates to downstream joins.
+# joins.<table>: ~    : table resolved elsewhere (ex: by a QueryScope), no dynamic join
+#
+# fields.<code>.label      : label shown in the back-office editor (default: <code>). The editor
+#                             prefixes it with the group of the field, the part of its code before
+#                             the first underscore ("product_ref" => "product"), translated through
+#                             its capitalized form ("Product"): pick codes whose group is meaningful.
+# A placeholder without a value in the current visit (:customer_id for a visitor, :cart_id
+# without a cart, :category_id outside a category page...) makes the rule or the action skip
+# with a logged warning: a field reading such a placeholder never evaluates to "false", it
+# is simply not evaluated. Only :product_id falls back to 0 outside a product page.
+# Dynamic expressions comparing the product to the object of the context are written as
+# EXISTS (...), which always yields 0/1: with :product_id bound to 0, a scalar subquery
+# (SELECT brand_id FROM product WHERE id = 0) yields NULL and "= false" would let nothing
+# through instead of everything; EXISTS keeps "= true" never matching and "= false" matching all.
+# fields.<code>.field      : "table.column" (exclusive with expression)
+# fields.<code>.expression : self-contained SQL expression, may reference runtime placeholders
+#                             (:customer_id, :cart_product_ids, :product_id, :cart_id, :order_id,
+#                             :category_id, :brand_id, :locale, :cart_total, :delivery_country_id,
+#                             plus those of the RuntimeParameterProviderInterface services).
+#                             May contain the :value token: the value entered in the editor is then
+#                             expanded inside the expression (one placeholder per item) instead of
+#                             being compared to it, and "operators" MUST be declared among [in, notIn]
+#                             ("in" keeps the products matching the expression, "notIn" the others)
+# fields.<code>.type       : text (default) | number | date | datetime | boolean
+#                             (a datetime column is entered as a date and compared on its date part)
+# fields.<code>.contexts   : contexts of the rules the field is offered to, a list among
+#                             [GLOBAL, CATEGORY, BRAND, PRODUCT, CART, ORDER, CUSTOMER]
+#                             (QueryBuilder\Enum\Context values). GLOBAL, the default, means every
+#                             context — a GLOBAL rule itself only sees GLOBAL fields. Restrict a field
+#                             to the contexts where its placeholder is filled (:product_id => PRODUCT,
+#                             :category_id => CATEGORY, :brand_id => BRAND, :order_id => ORDER); the
+#                             cart and the customer come from the session in every context, their
+#                             fields stay GLOBAL.
+# fields.<code>.usage      : editors the field is offered in, a list among [rule, action]
+#                             (default: both). "rule" is the trigger conditions of a rule, "action"
+#                             the product selection of an action: a field describing the selected
+#                             product against the object of the context ("same brand as the context
+#                             product") is always true in the rule editor of that context, declare it
+#                             [action]; a field reading the object itself (":category_id in [...]")
+#                             selects all or nothing in the action editor, declare it [rule].
+# fields.<code>.operators  : restrict allowed operators (react-querybuilder names)
+# fields.<code>.values_query : SQL listing the possible values — "value" column required, "label"
+#                              optional, :locale allowed. The BO editor then offers a select ("list of
+#                              values" operator) next to the free operators. Executed on the editor
+#                              screens only; falls back to the free input beyond 300 rows or on SQL
+#                              error. Not allowed on boolean fields.
+#
+# contexts.<CONTEXT>: hooks usable by rules of this context. Each entry is either a plain
+#                     code string, or a {code, label} mapping — the functional label is what
+#                     the back-office shows (default: the code). Merging overrides: union by
+#                     code, the last active module wins on the label.
+#                     The base codes are the theme_hook() points of the Flexy theme; a rule of
+#                     the GLOBAL context can be bound to any declared hook.
+# disabled: list of field codes to remove
+
+contexts:
+    GLOBAL:
+        - code: home.top
+          label: "Home page - top"
+        - code: home.bottom
+          label: "Home page - bottom"
+    CATEGORY:
+        - code: category.top
+          label: "Category page - top"
+        - code: category.bottom
+          label: "Category page - bottom"
+    BRAND:
+        - code: brand.top
+          label: "Brand page - top"
+        - code: brand.bottom
+          label: "Brand page - bottom"
+    PRODUCT:
+        - code: product.top
+          label: "Product page - top"
+        - code: product.details.bottom
+          label: "Product page - below the details"
+        - code: product.bottom
+          label: "Product page - bottom"
+    CART:
+        - code: cart.top
+          label: "Cart - top"
+        - code: cart.bottom
+          label: "Cart - bottom"
+    ORDER: []
+    CUSTOMER:
+        - code: account.top
+          label: "Customer account - top"
+        - code: account.bottom
+          label: "Customer account - bottom"
+
+joins:
+    product_i18n:
+        from: product.id
+        to: id
+        on: "product_i18n.locale = :locale"
+    product_category:
+        from: product.id
+        to: product_id
+        multivalued: true
+    category:
+        from: product_category.category_id
+    category_i18n:
+        from: category.id
+        to: id
+        on: "category_i18n.locale = :locale"
+    product_sale_elements:
+        from: product.id
+        to: product_id
+        multivalued: true
+    product_price:
+        from: product_sale_elements.id
+        to: product_sale_elements_id
+        multivalued: true
+    brand:
+        from: product.brand_id
+    brand_i18n:
+        from: brand.id
+        to: id
+        on: "brand_i18n.locale = :locale"
+
+fields:
+    product_ref:
+        label: "Product reference"
+        field: product.ref
+    product_title:
+        label: "Product title"
+        field: product_i18n.title
+    product_visible:
+        label: "Product visible"
+        field: product.visible
+        type: boolean
+    product_category_id:
+        label: "Category (ID)"
+        field: product_category.category_id
+        type: number
+    product_category_title:
+        label: "Product category title"
+        field: category_i18n.title
+        values_query: "SELECT DISTINCT title AS value FROM category_i18n WHERE locale = :locale AND title IS NOT NULL AND title <> '' ORDER BY title"
+    product_brand_title:
+        label: "Product brand"
+        field: brand_i18n.title
+        values_query: "SELECT DISTINCT title AS value FROM brand_i18n WHERE locale = :locale AND title IS NOT NULL AND title <> '' ORDER BY title"
+    product_price:
+        label: "Product price"
+        field: product_price.price
+        type: number
+    product_created_at:
+        label: "Product creation date"
+        field: product.created_at
+        type: datetime
+    product_in_cart:
+        label: "Product in the customer cart"
+        expression: "product.id IN (:cart_product_ids)"
+        type: boolean
+    # Outside a product page :product_id is bound to 0 (no current product):
+    # "= true" never matches, "= false" lets everything through
+    product_is_current:
+        label: "Is the product of the current page"
+        expression: "product.id = :product_id"
+        type: boolean
+    customer_purchased_last_3_months:
+        label: "Product bought by the customer in the last 3 months"
+        expression: "EXISTS (SELECT 1 FROM `order` qb_ord JOIN `order_product` qb_ordp ON qb_ordp.order_id = qb_ord.id WHERE qb_ord.customer_id = :customer_id AND qb_ordp.product_ref = product.ref AND qb_ord.created_at >= DATE_SUB(NOW(), INTERVAL 3 MONTH))"
+        type: boolean
+    # Cart-level conditions: constant for the whole visit, so they compare the same
+    # for every product. The CAST keeps the comparison numeric whatever the binding.
+    cart_total_amount:
+        label: "Cart products total (taxes included)"
+        expression: "CAST(:cart_total AS DECIMAL(16, 6))"
+        type: number
+    delivery_country:
+        label: "Delivery country"
+        expression: ":delivery_country_id"
+        type: number
+        operators: [in, notIn, '=', '!=']
+        values_query: "SELECT c.id AS value, ci.title AS label FROM country c JOIN country_i18n ci ON ci.id = c.id AND ci.locale = :locale WHERE c.visible = 1 ORDER BY ci.title"
+
+    # ---------- Product (every context) ----------
+    product_brand_id:
+        label: "Brand (ID)"
+        field: product.brand_id
+        type: number
+        values_query: "SELECT b.id AS value, bi.title AS label FROM brand b JOIN brand_i18n bi ON bi.id = b.id AND bi.locale = :locale WHERE b.visible = 1 ORDER BY bi.title"
+    product_default_category:
+        label: "Main category (list)"
+        expression: "EXISTS (SELECT 1 FROM product_category qb_pc WHERE qb_pc.product_id = product.id AND qb_pc.default_category = 1 AND qb_pc.category_id IN (:value))"
+        type: number
+        operators: [in, notIn]
+        values_query: "SELECT c.id AS value, ci.title AS label FROM category c JOIN category_i18n ci ON ci.id = c.id AND ci.locale = :locale ORDER BY ci.title"
+    product_is_new:
+        label: "Product flagged as new"
+        expression: "EXISTS (SELECT 1 FROM product_sale_elements qb_pse WHERE qb_pse.product_id = product.id AND qb_pse.newness = 1)"
+        type: boolean
+    product_in_promo:
+        label: "Product on catalog promotion"
+        expression: "EXISTS (SELECT 1 FROM product_sale_elements qb_pse WHERE qb_pse.product_id = product.id AND qb_pse.promo = 1)"
+        type: boolean
+    product_in_stock:
+        label: "Product in stock"
+        expression: "EXISTS (SELECT 1 FROM product_sale_elements qb_pse WHERE qb_pse.product_id = product.id AND qb_pse.quantity > 0)"
+        type: boolean
+
+    # ---------- Cart of the visit, every context (no cart in the visit: the rule skips, see header) ----------
+    cart_lines_count:
+        label: "Number of lines in the cart"
+        expression: "(SELECT COUNT(*) FROM cart_item qb_ci WHERE qb_ci.cart_id = :cart_id)"
+        type: number
+    cart_items_count:
+        label: "Number of items in the cart"
+        expression: "(SELECT COALESCE(SUM(qb_ci.quantity), 0) FROM cart_item qb_ci WHERE qb_ci.cart_id = :cart_id)"
+        type: number
+    cart_product_quantity:
+        label: "Quantity of the product in the cart"
+        expression: "(SELECT COALESCE(SUM(qb_ci.quantity), 0) FROM cart_item qb_ci WHERE qb_ci.cart_id = :cart_id AND qb_ci.product_id = product.id)"
+        type: number
+    cart_has_brand:
+        label: "Cart contains a product of the brand (list)"
+        expression: "EXISTS (SELECT 1 FROM cart_item qb_ci JOIN product qb_cp ON qb_cp.id = qb_ci.product_id WHERE qb_ci.cart_id = :cart_id AND qb_cp.brand_id IN (:value))"
+        type: number
+        operators: [in, notIn]
+        values_query: "SELECT b.id AS value, bi.title AS label FROM brand b JOIN brand_i18n bi ON bi.id = b.id AND bi.locale = :locale WHERE b.visible = 1 ORDER BY bi.title"
+    cart_has_category:
+        label: "Cart contains a product of the category (list)"
+        expression: "EXISTS (SELECT 1 FROM cart_item qb_ci JOIN product_category qb_pc ON qb_pc.product_id = qb_ci.product_id WHERE qb_ci.cart_id = :cart_id AND qb_pc.category_id IN (:value))"
+        type: number
+        operators: [in, notIn]
+        values_query: "SELECT c.id AS value, ci.title AS label FROM category c JOIN category_i18n ci ON ci.id = c.id AND ci.locale = :locale ORDER BY ci.title"
+    cart_has_promo_item:
+        label: "Cart contains a promotional line"
+        expression: "EXISTS (SELECT 1 FROM cart_item qb_ci WHERE qb_ci.cart_id = :cart_id AND qb_ci.promo = 1)"
+        type: boolean
+    cart_shares_brand:
+        label: "Same brand as a product of the cart"
+        expression: "EXISTS (SELECT 1 FROM cart_item qb_ci JOIN product qb_cp ON qb_cp.id = qb_ci.product_id WHERE qb_ci.cart_id = :cart_id AND qb_cp.brand_id IS NOT NULL AND qb_cp.brand_id = product.brand_id)"
+        type: boolean
+    cart_shares_category:
+        label: "Shares a category with a product of the cart"
+        expression: "EXISTS (SELECT 1 FROM cart_item qb_ci JOIN product_category qb_cpc ON qb_cpc.product_id = qb_ci.product_id JOIN product_category qb_pc ON qb_pc.category_id = qb_cpc.category_id WHERE qb_ci.cart_id = :cart_id AND qb_pc.product_id = product.id)"
+        type: boolean
+    cart_accessory_of_item:
+        label: "Accessory of a product of the cart"
+        expression: "EXISTS (SELECT 1 FROM cart_item qb_ci JOIN accessory qb_acc ON qb_acc.product_id = qb_ci.product_id WHERE qb_ci.cart_id = :cart_id AND qb_acc.accessory = product.id)"
+        type: boolean
+
+    # ---------- Customer of the visit, every context (anonymous visitor: the rule skips, see header) ----------
+    customer_is_reseller:
+        label: "Customer is a reseller"
+        expression: "EXISTS (SELECT 1 FROM customer qb_c WHERE qb_c.id = :customer_id AND qb_c.reseller = 1)"
+        type: boolean
+    customer_discount_rate:
+        label: "Customer discount rate (%)"
+        expression: "(SELECT qb_c.discount FROM customer qb_c WHERE qb_c.id = :customer_id)"
+        type: number
+    customer_since_days:
+        label: "Customer seniority (days)"
+        expression: "(SELECT DATEDIFF(NOW(), qb_c.created_at) FROM customer qb_c WHERE qb_c.id = :customer_id)"
+        type: number
+    # Orders whose status is not "not paid", "canceled" or "refunded" (core status codes)
+    customer_orders_count:
+        label: "Number of orders of the customer"
+        expression: "(SELECT COUNT(*) FROM `order` qb_o JOIN order_status qb_os ON qb_os.id = qb_o.status_id WHERE qb_o.customer_id = :customer_id AND qb_os.code NOT IN ('not_paid', 'canceled', 'refunded'))"
+        type: number
+    # NULL (no comparison matches) for a customer without any order
+    customer_last_order_days:
+        label: "Days since the last order of the customer"
+        expression: "(SELECT DATEDIFF(NOW(), MAX(qb_o.created_at)) FROM `order` qb_o WHERE qb_o.customer_id = :customer_id)"
+        type: number
+    customer_newsletter_subscriber:
+        label: "Customer subscribed to the newsletter"
+        expression: "EXISTS (SELECT 1 FROM newsletter qb_n JOIN customer qb_c ON qb_c.email = qb_n.email WHERE qb_c.id = :customer_id AND qb_n.unsubscribed = 0)"
+        type: boolean
+    customer_purchased_ever:
+        label: "Product already bought by the customer"
+        expression: "EXISTS (SELECT 1 FROM `order` qb_o JOIN order_product qb_op ON qb_op.order_id = qb_o.id WHERE qb_o.customer_id = :customer_id AND qb_op.product_ref = product.ref)"
+        type: boolean
+    customer_purchased_brand:
+        label: "Brand already bought by the customer"
+        expression: "EXISTS (SELECT 1 FROM `order` qb_o JOIN order_product qb_op ON qb_op.order_id = qb_o.id JOIN product qb_p ON qb_p.ref = qb_op.product_ref WHERE qb_o.customer_id = :customer_id AND qb_p.brand_id IS NOT NULL AND qb_p.brand_id = product.brand_id)"
+        type: boolean
+    customer_purchased_category:
+        label: "Category already bought by the customer"
+        expression: "EXISTS (SELECT 1 FROM `order` qb_o JOIN order_product qb_op ON qb_op.order_id = qb_o.id JOIN product qb_p ON qb_p.ref = qb_op.product_ref JOIN product_category qb_ppc ON qb_ppc.product_id = qb_p.id JOIN product_category qb_pc ON qb_pc.category_id = qb_ppc.category_id WHERE qb_o.customer_id = :customer_id AND qb_pc.product_id = product.id)"
+        type: boolean
+
+    # ---------- PRODUCT context: the selected product against the context product (:product_id) ----------
+    context_product_same_brand:
+        label: "Same brand as the context product"
+        expression: "EXISTS (SELECT 1 FROM product qb_ctx WHERE qb_ctx.id = :product_id AND qb_ctx.brand_id IS NOT NULL AND qb_ctx.brand_id = product.brand_id)"
+        type: boolean
+        contexts: [PRODUCT]
+        usage: [action]
+    context_product_shared_category:
+        label: "Shares a category with the context product"
+        expression: "EXISTS (SELECT 1 FROM product_category qb_ctx JOIN product_category qb_pc ON qb_pc.category_id = qb_ctx.category_id WHERE qb_ctx.product_id = :product_id AND qb_pc.product_id = product.id)"
+        type: boolean
+        contexts: [PRODUCT]
+        usage: [action]
+    context_product_same_default_category:
+        label: "Same main category as the context product"
+        expression: "EXISTS (SELECT 1 FROM product_category qb_ctx JOIN product_category qb_pc ON qb_pc.category_id = qb_ctx.category_id WHERE qb_ctx.product_id = :product_id AND qb_ctx.default_category = 1 AND qb_pc.product_id = product.id AND qb_pc.default_category = 1)"
+        type: boolean
+        contexts: [PRODUCT]
+        usage: [action]
+    context_product_accessory:
+        label: "Accessory of the context product"
+        expression: "EXISTS (SELECT 1 FROM accessory qb_acc WHERE qb_acc.product_id = :product_id AND qb_acc.accessory = product.id)"
+        type: boolean
+        contexts: [PRODUCT]
+        usage: [action]
+    context_product_same_template:
+        label: "Same template as the context product"
+        expression: "EXISTS (SELECT 1 FROM product qb_ctx WHERE qb_ctx.id = :product_id AND qb_ctx.template_id IS NOT NULL AND qb_ctx.template_id = product.template_id)"
+        type: boolean
+        contexts: [PRODUCT]
+        usage: [action]
+    # "= false" removes the products already in the cart from a product list, "= true" keeps only them.
+    # Reads the cart of the visit (same test as product_in_cart), offered to the PRODUCT lists by design
+    context_product_in_cart:
+        label: "The product is in the cart"
+        expression: "product.id IN (:cart_product_ids)"
+        type: boolean
+        contexts: [PRODUCT]
+        usage: [action, rule]
+    context_product_shared_feature_value:
+        label: "Same value as the context product for the feature (list)"
+        expression: "EXISTS (SELECT 1 FROM feature_product qb_ctx JOIN feature_product qb_fp ON qb_fp.feature_id = qb_ctx.feature_id AND qb_fp.feature_av_id = qb_ctx.feature_av_id WHERE qb_ctx.product_id = :product_id AND qb_ctx.feature_av_id IS NOT NULL AND qb_fp.product_id = product.id AND qb_ctx.feature_id IN (:value))"
+        type: number
+        operators: [in, notIn]
+        contexts: [PRODUCT]
+        usage: [action]
+        values_query: "SELECT f.id AS value, fi.title AS label FROM feature f JOIN feature_i18n fi ON fi.id = f.id AND fi.locale = :locale ORDER BY fi.title"
+
+    # ---------- CATEGORY context (:category_id) ----------
+    context_category_id:
+        label: "Context category (list)"
+        expression: ":category_id"
+        type: number
+        operators: [in, notIn, '=', '!=']
+        contexts: [CATEGORY]
+        usage: [rule]
+        values_query: "SELECT c.id AS value, ci.title AS label FROM category c JOIN category_i18n ci ON ci.id = c.id AND ci.locale = :locale ORDER BY ci.title"
+    context_category_parent_id:
+        label: "Parent of the context category (list)"
+        expression: "(SELECT qb_c.parent FROM category qb_c WHERE qb_c.id = :category_id)"
+        type: number
+        operators: [in, notIn, '=', '!=']
+        contexts: [CATEGORY]
+        usage: [rule]
+        values_query: "SELECT c.id AS value, ci.title AS label FROM category c JOIN category_i18n ci ON ci.id = c.id AND ci.locale = :locale ORDER BY ci.title"
+    context_category_product:
+        label: "Product of the context category"
+        expression: "EXISTS (SELECT 1 FROM product_category qb_pc WHERE qb_pc.product_id = product.id AND qb_pc.category_id = :category_id)"
+        type: boolean
+        contexts: [CATEGORY]
+        usage: [action]
+    # Recursive CTE: MySQL 8.0+ / MariaDB 10.2+
+    context_category_subtree_product:
+        label: "Product of the context category or its sub-categories"
+        expression: "EXISTS (WITH RECURSIVE qb_tree AS (SELECT id FROM category WHERE id = :category_id UNION ALL SELECT qb_c.id FROM category qb_c JOIN qb_tree ON qb_c.parent = qb_tree.id) SELECT 1 FROM product_category qb_pc JOIN qb_tree ON qb_tree.id = qb_pc.category_id WHERE qb_pc.product_id = product.id)"
+        type: boolean
+        contexts: [CATEGORY]
+        usage: [action]
+
+    # ---------- BRAND context (:brand_id) ----------
+    context_brand_id:
+        label: "Context brand (list)"
+        expression: ":brand_id"
+        type: number
+        operators: [in, notIn, '=', '!=']
+        contexts: [BRAND]
+        usage: [rule]
+        values_query: "SELECT b.id AS value, bi.title AS label FROM brand b JOIN brand_i18n bi ON bi.id = b.id AND bi.locale = :locale WHERE b.visible = 1 ORDER BY bi.title"
+    context_brand_product:
+        label: "Product of the context brand"
+        expression: "EXISTS (SELECT 1 FROM brand qb_b WHERE qb_b.id = :brand_id AND qb_b.id = product.brand_id)"
+        type: boolean
+        contexts: [BRAND]
+        usage: [action]
+disabled: []

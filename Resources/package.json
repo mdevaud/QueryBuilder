@@ -1,0 +1,31 @@
+{
+    "name": "thelia-query-builder-module",
+    "version": "2.0.0",
+    "private": true,
+    "author": "Samuel Diakité – OpenStudio <sdiakite@openstudio.fr> (https://github.com/openstudio-sdiakite)",
+    "description": "Back-office editor bundle of the Thelia QueryBuilder module (react-querybuilder through openstudio/query-builder-bundle, Stimulus controllers of the rule and action screens).",
+    "scripts": {
+        "build": "webpack --mode production",
+        "watch": "webpack --mode development --watch",
+        "dev": "webpack --mode development"
+    },
+    "dependencies": {
+        "@hotwired/stimulus": "^3.2.2",
+        "@react-querybuilder/bootstrap": "^8.23.1",
+        "@react-querybuilder/dnd": "^8.23.1",
+        "react": "^19.2.0",
+        "react-dnd": "^16.0.1",
+        "react-dnd-html5-backend": "^16.0.1",
+        "react-dnd-touch-backend": "^16.0.1",
+        "react-dom": "^19.2.0",
+        "react-querybuilder": "^8.23.1",
+        "redux": "^5.0.1"
+    },
+    "devDependencies": {
+        "css-loader": "^7.1.2",
+        "mini-css-extract-plugin": "^2.9.0",
+        "terser-webpack-plugin": "^5.6.1",
+        "webpack": "^5.94.0",
+        "webpack-cli": "^5.1.4"
+    }
+}

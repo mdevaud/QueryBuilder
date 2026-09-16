@@ -1,0 +1,135 @@
+{% extends 'QueryBuilder/_layout.html.twig' %}
+
+{% set d = 'querybuilder.bo.default-twig' %}
+{% form_theme form with bo_form_themes|merge(['@OpenStudioQueryBuilder/form/query_builder.html.twig']) only %}
+
+{% block title %}{{ 'Action'|trans({}, d) }} {{ action.name }}{% endblock %}
+{% block body_testid %}query-builder-action-edit{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.tools.index') }}">{{ 'Tools'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin_query_builder_list') }}">{{ 'Query Builder'|trans({}, d) }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin_query_builder_rule_edit', { ruleId: rule.id }) }}">{{ rule.name }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ action.name }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    {% set edit_url = path('admin_query_builder_action_edit', { ruleId: rule.id, actionId: action.id }) %}
+    {% set rule_url = path('admin_query_builder_rule_edit', { ruleId: rule.id }) %}
+
+    <div class="container-fluid" data-testid="query-builder-action-edit-page">
+        {% embed '@BackOfficeDefaultTwig/_page_header.html.twig' with { title: 'Action'|trans({}, d) ~ ' « ' ~ action.name ~ ' »' } %}
+            {% block title %}
+                {{ title }}
+                <small class="text-body-secondary fs-6">{{ 'rule'|trans({}, d) }} « {{ rule.name }} », {{ 'context'|trans({}, d) }} {{ rule.context_label }}</small>
+            {% endblock %}
+            {% block actions %}
+                <a href="{{ rule_url }}" class="btn btn-outline-secondary btn-sm" data-testid="qb-action-back">
+                    <i class="bi bi-arrow-left" aria-hidden="true"></i> {{ 'Back to the rule'|trans({}, d) }}
+                </a>
+            {% endblock %}
+        {% endembed %}
+
+        <form method="post"
+              action="{{ path('admin_query_builder_action_save', { ruleId: rule.id, actionId: action.id }) }}"
+              data-testid="qb-action-form"
+              data-controller="qb-editor qb-action-form"
+              data-qb-editor-fields-by-context-value="{{ fields_by_context|json_encode|e('html_attr') }}"
+              data-qb-editor-labels-value="{{ editor_labels|json_encode|e('html_attr') }}"
+              data-qb-action-form-discount-code-value="{{ discount_code }}"
+              data-qb-action-form-cart-discount-code-value="{{ cart_discount_code }}">
+            {{ form_widget(form._token) }}
+            <input type="hidden" name="{{ field_name(form.success_url) }}" value="{{ edit_url }}">
+            <input type="hidden" name="{{ field_name(form.error_url) }}" value="{{ edit_url }}">
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form_row(form.name, { label: 'Name'|trans({}, d) }) }}
+                            {{ form_row(form.description, { label: 'Description'|trans({}, d), attr: { rows: 2 } }) }}
+                            {{ form_row(form.activate, { label: 'Active action'|trans({}, d) }) }}
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label" for="qb-action-code">{{ 'Predefined action'|trans({}, d) }}</label>
+                                <select id="qb-action-code" name="{{ field_name(form.code) }}" class="form-select" data-qb-action-form-target="code" data-action="change->qb-action-form#sync">
+                                    {% for available_action in available_actions %}
+                                        <option value="{{ available_action.code }}" {{ available_action.code == field_value(form.code) ? 'selected' }}>{{ available_action.label }} ({{ available_action.type }})</option>
+                                    {% endfor %}
+                                </select>
+                                {% do form.code.setRendered %}
+                            </div>
+
+                            <div class="row" data-qb-action-form-target="displayParams">
+                                <div class="col-md-6">
+                                    {{ form_row(form.limit, { label: 'Number of products'|trans({}, d), attr: { min: 1, max: 50, placeholder: 3 } }) }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form_row(form.persist_days, { label: 'Suggestions persistence (days)'|trans({}, d), attr: { min: 1, max: 365, placeholder: 'empty = no persistence'|trans({}, d) }, help: 'The same products are served again for N days or until purchased.'|trans({}, d) }) }}
+                                </div>
+                            </div>
+
+                            <fieldset class="border rounded p-3 mb-3" data-qb-action-form-target="discountParams">
+                                <legend class="h6 float-none w-auto px-2 mb-0">{{ 'Discount on the selected products'|trans({}, d) }}</legend>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        {{ form_row(form.discount_rate, { label: 'Rate (%)'|trans({}, d), attr: { min: 0.01, max: 99.99, step: 0.01 } }) }}
+                                    </div>
+                                    <div class="col-md-8">
+                                        {{ form_row(form.discount_label, { label: 'Label shown to the customer'|trans({}, d) }) }}
+                                    </div>
+                                </div>
+                                {{ form_row(form.discount_cumulative, { label: 'Stackable with an existing promotion'|trans({}, d), help: 'The discount holds as long as the rule is active, for every eligible customer. Not stackable: it only applies when better than the current promotion.'|trans({}, d) }) }}
+                            </fieldset>
+
+                            <fieldset class="border rounded p-3 mb-3" data-qb-action-form-target="cartDiscountParams">
+                                <legend class="h6 float-none w-auto px-2 mb-0">{{ 'Global cart discount'|trans({}, d) }}</legend>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        {{ form_row(form.cart_discount_rate, { label: 'Rate (%)'|trans({}, d), attr: { min: 0.01, max: 99.99, step: 0.01 } }) }}
+                                    </div>
+                                    <div class="col-md-8 pt-4">
+                                        {{ form_row(form.cart_discount_free_shipping, { label: 'Free shipping'|trans({}, d) }) }}
+                                    </div>
+                                </div>
+                                <div class="form-text">{{ 'Percentage off the cart products total (shipping excluded), as long as the rule is active, for every eligible customer. Eligibility is carried by the rule conditions.'|trans({}, d) }}</div>
+                            </fieldset>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4" data-qb-action-form-target="treeGroup">
+                <div class="card-header d-flex align-items-baseline gap-2">
+                    <div class="flex-grow-1">
+                        <h2 class="h6 text-uppercase mb-0">{{ 'Product selection of the action'|trans({}, d) }}</h2>
+                    </div>
+                    <span class="qb-hooks-count" data-qb-editor-target="counter"></span>
+                </div>
+                <div class="card-body">
+                    {% include 'QueryBuilder/_condition-editor.html.twig' with {
+                        field: form.condition_tree,
+                        fields: context_fields,
+                        summary_label: 'Reading of the selection'|trans({}, d),
+                        empty_hint: 'No criterion: the action applies to the whole catalog.'|trans({}, d),
+                    } only %}
+                </div>
+            </div>
+
+            <div class="qb-form-actions sticky-bottom bg-body py-3 border-top d-flex align-items-center gap-2">
+                {% if is_granted('UPDATE', { module: 'QueryBuilder' }) %}
+                    <button type="submit" class="btn btn-primary" data-testid="qb-action-submit">
+                        <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save the action'|trans({}, d) }}
+                    </button>
+                {% endif %}
+                <a href="{{ rule_url }}" class="btn btn-outline-secondary">{{ 'Back to the rule'|trans({}, d) }}</a>
+            </div>
+        </form>
+    </div>
+{% endblock %}

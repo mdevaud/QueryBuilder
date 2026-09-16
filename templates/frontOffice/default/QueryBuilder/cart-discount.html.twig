@@ -1,0 +1,53 @@
+{# Rule discounts of the cart, rendered once on the checkout pages (checkout.top,
+   cart.bottom): the cart discount (label, amount, free shipping) and the product
+   discounts charged on the lines (label, products). Texts are translated by the
+   module; the amount is formatted with twig/intl-extra, shipped with Flexy. A theme
+   overrides this file at templates/frontOffice/<theme>/modules/QueryBuilder/cart-discount.html.twig
+   (variables: hook, label, rate, amount, free_shipping, currency_code, locale,
+   line_discounts [{label, rate, products}], texts). #}
+
+{% set className = '' %}
+{% if hook == 'checkout.top' %}
+    {% set className = 'flex justify-center gap-5' %}
+{% elseif hook == 'cart.bottom' %}
+    {% set className = 'my-5' %}
+{% endif %}
+
+<div class="QueryBuilderCartDiscount rounded bg-lightest py-2 px-4 text-sm {{ className }}" data-hook="{{ hook }}">
+    {% if amount %}
+        <div class="QueryBuilderCartDiscount-amount py-2">
+            <twig:Molecules:Tag:Base
+                color="neutral"
+                icon="price-tag"
+                customText="{{ label ?: texts.discount }}"
+            />
+            {% if hook == 'cart.bottom' %}
+                <p class="mt-1">
+                    <span class="text-lg font-semibold">&minus;{{ currency_code ? amount|format_currency(currency_code, locale: locale) : amount }}</span>
+                    <span class="text-grey">({{ texts.rate_off }})</span>
+                </p>
+            {% endif %}
+        </div>
+    {% endif %}
+    {% if free_shipping %}
+        <p class="QueryBuilderCartDiscount-shipping py-2">
+            <twig:Molecules:Tag:Base
+                color="neutral"
+                icon="reinsurance-delivery"
+                customText="{{ label and not amount ? label ~ ' : ' : '' }}{{ texts.free_shipping }}"
+            />
+        </p>
+    {% endif %}
+    {% for line in line_discounts|default([]) %}
+        <p class="QueryBuilderCartDiscount-line QueryBuilderDiscountLabel py-2">
+            <twig:Molecules:Tag:Base
+                color="neutral"
+                icon="price-tag"
+                customText="{{ line.label }}"
+            />
+            {% if hook == 'cart.bottom' and line.products %}
+                <span class="ms-1">{{ line.products|join(', ') }}</span>
+            {% endif %}
+        </p>
+    {% endfor %}
+</div>

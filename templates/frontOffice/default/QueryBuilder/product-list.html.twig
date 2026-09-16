@@ -1,0 +1,8 @@
+{# Default rendering of a DisplayProductsList action at a theme_hook() point.
+   Relies on the Flexy cross-selling strip, which fetches the products and keeps
+   the picked order. A theme overrides this file by shipping its own copy at
+   templates/frontOffice/<theme>/modules/QueryBuilder/product-list.html.twig
+   (variables: hook, rule_name, action_name, product_ids). #}
+<section class="QueryBuilderProductList" data-hook="{{ hook }}" data-rule="{{ rule_name }}" data-action="{{ action_name }}">
+    <twig:Layouts:CrossSelling:Base :filters="{id: product_ids, itemsPerPage: product_ids|length}" title="{{ action_name }}" />
+</section>

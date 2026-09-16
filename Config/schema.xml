@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<database defaultIdMethod="native" name="TheliaMain">
+
+    <table name="query_builder_rule" namespace="QueryBuilder\Model">
+        <column autoIncrement="true" name="id" primaryKey="true" required="true" type="INTEGER" />
+        <column name="name" required="true" size="255" type="VARCHAR" />
+        <column name="description" type="LONGVARCHAR" />
+        <column name="context" required="true" size="50" type="VARCHAR" />
+        <!-- JSON array of hook codes the rule is bound to -->
+        <column name="hooks" type="LONGVARCHAR" />
+        <!-- react-querybuilder JSON tree; NULL means the rule always applies -->
+        <column name="condition_tree" type="LONGVARCHAR" />
+        <column name="activate" defaultValue="0" type="TINYINT" />
+        <column name="position" defaultValue="0" type="INTEGER" />
+        <behavior name="timestampable" />
+    </table>
+
+    <table name="query_builder_action" namespace="QueryBuilder\Model">
+        <column autoIncrement="true" name="id" primaryKey="true" required="true" type="INTEGER" />
+        <column name="rule_id" required="true" type="INTEGER" />
+        <column name="name" required="true" size="255" type="VARCHAR" />
+        <column name="description" type="LONGVARCHAR" />
+        <!-- matches the code exposed by an ActionInterface implementation -->
+        <column name="code" required="true" size="100" type="VARCHAR" />
+        <!-- display | action | filter -->
+        <column name="type" required="true" size="20" type="VARCHAR" />
+        <!-- react-querybuilder JSON tree selecting the products the action works on -->
+        <column name="condition_tree" type="LONGVARCHAR" />
+        <!-- JSON object of action-specific parameters -->
+        <column name="parameters" type="LONGVARCHAR" />
+        <column name="activate" defaultValue="0" type="TINYINT" />
+        <column name="position" defaultValue="0" type="INTEGER" />
+        <foreign-key foreignTable="query_builder_rule" name="fk_query_builder_action_rule_id" onDelete="CASCADE" onUpdate="RESTRICT">
+            <reference foreign="id" local="rule_id" />
+        </foreign-key>
+        <behavior name="timestampable" />
+    </table>
+
+    <table name="query_builder_suggestion" namespace="QueryBuilder\Model">
+        <column autoIncrement="true" name="id" primaryKey="true" required="true" type="INTEGER" />
+        <column name="customer_id" required="true" type="INTEGER" />
+        <column name="product_id" required="true" type="INTEGER" />
+        <column name="rule_id" required="true" type="INTEGER" />
+        <column name="action_id" required="true" type="INTEGER" />
+        <column name="hook" size="100" type="VARCHAR" />
+        <!-- start of the current display cycle; created_at keeps the very first one -->
+        <column name="displayed_at" required="true" type="TIMESTAMP" />
+        <column name="expires_at" type="TIMESTAMP" />
+        <column name="purchased_at" type="TIMESTAMP" />
+        <unique name="query_builder_suggestion_unique">
+            <unique-column name="customer_id" />
+            <unique-column name="product_id" />
+            <unique-column name="action_id" />
+        </unique>
+        <!-- covers the systematic active-suggestion filter: customer + purchased_at IS NULL + expires_at > NOW() -->
+        <index name="idx_query_builder_suggestion_active">
+            <index-column name="customer_id" />
+            <index-column name="purchased_at" />
+            <index-column name="expires_at" />
+        </index>
+        <foreign-key foreignTable="customer" name="fk_query_builder_suggestion_customer_id" onDelete="CASCADE" onUpdate="RESTRICT">
+            <reference foreign="id" local="customer_id" />
+        </foreign-key>
+        <foreign-key foreignTable="product" name="fk_query_builder_suggestion_product_id" onDelete="CASCADE" onUpdate="RESTRICT">
+            <reference foreign="id" local="product_id" />
+        </foreign-key>
+        <foreign-key foreignTable="query_builder_rule" name="fk_query_builder_suggestion_rule_id" onDelete="CASCADE" onUpdate="RESTRICT">
+            <reference foreign="id" local="rule_id" />
+        </foreign-key>
+        <foreign-key foreignTable="query_builder_action" name="fk_query_builder_suggestion_action_id" onDelete="CASCADE" onUpdate="RESTRICT">
+            <reference foreign="id" local="action_id" />
+        </foreign-key>
+        <behavior name="timestampable" />
+    </table>
+
+    <external-schema filename="local/config/schema.xml" referenceOnly="true" />
+</database>

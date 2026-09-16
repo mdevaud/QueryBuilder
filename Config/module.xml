@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module xmlns="http://thelia.net/schema/dic/module"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://thelia.net/schema/dic/module http://thelia.net/schema/dic/module/module-2_2.xsd">
+    <fullnamespace>QueryBuilder\QueryBuilder</fullnamespace>
+    <descriptive locale="en_US">
+        <title>Query Builder</title>
+        <description>Generic rule engine: build condition trees in the back-office, compile them to SQL and trigger actions (product lists, processing, filters) on front-office hooks.</description>
+    </descriptive>
+    <descriptive locale="fr_FR">
+        <title>Query Builder</title>
+        <description>Moteur de règles générique : édition d'arbres de conditions en back-office, compilation en SQL et déclenchement d'actions (listes de produits, traitements, filtres) sur les hooks du front-office.</description>
+    </descriptive>
+    <languages>
+        <language>en_US</language>
+        <language>fr_FR</language>
+    </languages>
+    <version>2.0.0</version>
+    <authors>
+        <author>
+            <name>Samuel Diakité</name>
+            <company>OpenStudio</company>
+            <email>sdiakite@openstudio.fr</email>
+            <website>https://github.com/openstudio-sdiakite</website>
+        </author>
+    </authors>
+    <type>classic</type>
+    <thelia>3.0.0</thelia>
+    <stability>beta</stability>
+</module>

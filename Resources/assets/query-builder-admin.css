@@ -1,0 +1,375 @@
+/* Back-office skin of the QueryBuilder module screens (Bootstrap 5 back-office).
+   Loaded after the react-querybuilder stylesheet, whose variables it overrides. */
+
+:root {
+    --qb-accent: var(--bs-primary, #0d6efd);
+    --qb-accent-soft: rgba(var(--bs-primary-rgb, 13, 110, 253), 0.08);
+    --qb-border: var(--bs-border-color, #dee2e6);
+    --qb-text-muted: var(--bs-secondary-color, #6c757d);
+    --qb-group-bg: var(--bs-tertiary-bg, #f8f9fa);
+
+    /* Vendor variables: lighter frame, tighter spacing than the library default */
+    --rqb-spacing: 0.45rem;
+    --rqb-base-color: var(--bs-primary, #0d6efd);
+    --rqb-background-color: transparent;
+    --rqb-border-color: var(--bs-border-color, #dee2e6);
+    --rqb-border-radius: var(--bs-border-radius, 0.375rem);
+    --rqb-branch-indent: 0.6rem;
+}
+
+/* ----------------------------------------------------------------- Steps */
+
+.qb-step {
+    flex: 0 0 auto;
+    width: 22px;
+    height: 22px;
+    line-height: 22px;
+    text-align: center;
+    border-radius: 50%;
+    background: var(--qb-accent);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+/* ----------------------------------------------------------------- Hooks */
+
+.qb-hooks-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.qb-hooks-count {
+    font-size: 12px;
+    color: var(--qb-text-muted);
+    margin-left: auto;
+}
+
+.qb-hooks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 6px;
+}
+
+.qb-hook-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    margin: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--qb-border);
+    border-radius: var(--bs-border-radius, 0.375rem);
+    font-weight: 400;
+    cursor: pointer;
+    transition: background-color 0.12s ease, border-color 0.12s ease;
+}
+
+.qb-hook-label:hover,
+.qb-hook-checked > .qb-hook-label {
+    border-color: var(--qb-accent);
+    background: var(--qb-accent-soft);
+}
+
+.qb-hook-label > .form-check-input {
+    flex: 0 0 auto;
+    margin-top: 3px;
+}
+
+/* min-width 0: without it the flex item refuses to shrink and the long
+   unbreakable hook code overflows the card */
+.qb-hook-text {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.qb-hook-text code {
+    font-size: 12px;
+    word-break: break-all;
+}
+
+/* ------------------------------------------------------------ Conditions */
+
+.qb-tree-panel {
+    border: 1px dashed var(--qb-border);
+    border-radius: var(--bs-border-radius, 0.375rem);
+    padding: 12px;
+    background: var(--bs-body-bg, #fff);
+}
+
+.qb-summary {
+    display: none;
+    margin-bottom: 12px;
+    padding: 10px 14px 12px;
+    border: 1px solid var(--qb-border);
+    border-left: 3px solid var(--qb-accent);
+    border-radius: var(--bs-border-radius, 0.375rem);
+    background: var(--qb-accent-soft);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.qb-summary.qb-summary-visible {
+    display: block;
+}
+
+.qb-summary-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--qb-accent);
+    margin-bottom: 2px;
+}
+
+/* Structured recap: one line per condition, nesting shown by indented rails */
+
+.qb-summary-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.qb-summary-heading {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.qb-summary-heading-text {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--qb-text-muted);
+}
+
+.qb-summary-combinator {
+    display: inline-block;
+    min-width: 26px;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-align: center;
+    color: #fff;
+    background: var(--qb-text-muted);
+}
+
+.qb-summary-combinator-and {
+    background: var(--qb-accent);
+}
+
+.qb-summary-combinator-or {
+    background: #4a90a4;
+}
+
+.qb-summary-rule {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px;
+    padding: 4px 0 4px 14px;
+    position: relative;
+}
+
+.qb-summary-rule::before {
+    content: "";
+    position: absolute;
+    left: 2px;
+    top: 12px;
+    width: 6px;
+    height: 1px;
+    background: var(--qb-border);
+}
+
+.qb-summary-field {
+    font-weight: 600;
+}
+
+.qb-summary-field-unknown {
+    color: var(--bs-danger, #dc3545);
+    text-decoration: underline dotted;
+}
+
+.qb-summary-operator {
+    font-style: italic;
+    color: var(--qb-text-muted);
+}
+
+.qb-summary-join {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--qb-text-muted);
+}
+
+.qb-summary-value {
+    padding: 1px 7px;
+    border: 1px solid var(--qb-border);
+    border-radius: 10px;
+    background: var(--bs-body-bg, #fff);
+    font-family: var(--bs-font-monospace, monospace);
+    font-size: 12px;
+}
+
+.qb-summary-missing {
+    padding: 1px 7px;
+    border-radius: 10px;
+    background: var(--bs-danger-bg-subtle, #f8d7da);
+    font-size: 12px;
+    font-style: italic;
+    color: var(--bs-danger, #dc3545);
+}
+
+.qb-summary-nested {
+    margin: 6px 0 6px 14px;
+}
+
+/* Nested groups get their own rail so the depth is obvious */
+.qb-summary-nested > .qb-summary-group {
+    padding: 6px 0 2px 12px;
+    border-left: 2px solid var(--qb-border);
+}
+
+.qb-empty-hint {
+    display: none;
+    font-size: 13px;
+    color: var(--qb-text-muted);
+    font-style: italic;
+    margin-bottom: 10px;
+}
+
+.qb-empty-hint.qb-empty-hint-visible {
+    display: block;
+}
+
+/* --------------------------------------------- Action summary popovers */
+
+/* Plain (i) mark after the action name; the popover itself is appended to body */
+.qb-action-summary-trigger {
+    padding: 0 2px;
+    border: 0;
+    background: none;
+    color: var(--qb-accent);
+    font-size: 14px;
+    line-height: 1;
+    vertical-align: -1px;
+    cursor: help;
+}
+
+.qb-action-summary-trigger:hover,
+.qb-action-summary-trigger:focus-visible {
+    color: var(--bs-link-hover-color, var(--qb-accent));
+}
+
+.qb-action-summary-trigger-empty {
+    color: var(--qb-text-muted);
+}
+
+.qb-action-summary-popover {
+    max-width: 480px;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.qb-action-summary-popover .popover-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--qb-accent);
+}
+
+.qb-action-summary-empty {
+    font-style: italic;
+    color: var(--qb-text-muted);
+}
+
+/* Parameters listed under the selection; the rail separates them from the tree */
+.qb-action-summary-details {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.qb-action-summary > * + .qb-action-summary-details {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--qb-border);
+}
+
+.qb-action-summary-details > li {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 2px 0;
+    font-weight: 600;
+}
+
+.qb-action-summary-details > li::before {
+    content: "";
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--qb-accent);
+    transform: translateY(-1px);
+}
+
+/* ------------------------------------------------- react-querybuilder skin */
+
+.qb-tree-panel .ruleGroup {
+    background: var(--qb-group-bg);
+    border: 1px solid var(--qb-border);
+    padding: 10px;
+}
+
+/* Nested groups alternate shades so the nesting depth is readable at a glance */
+.qb-tree-panel .ruleGroup .ruleGroup {
+    background: var(--bs-body-bg, #fff);
+}
+
+.qb-tree-panel .ruleGroup .ruleGroup .ruleGroup {
+    background: var(--qb-group-bg);
+}
+
+.qb-tree-panel .ruleGroup-header,
+.qb-tree-panel .rule {
+    flex-wrap: wrap;
+}
+
+/* Field labels can be long: fix the widths so the columns stay aligned between rules */
+.qb-tree-panel select.rule-fields {
+    width: 320px;
+    font-weight: 600;
+}
+
+.qb-tree-panel select.rule-operators {
+    width: 220px;
+}
+
+.qb-tree-panel input.rule-value,
+.qb-tree-panel select.rule-value,
+.qb-tree-panel textarea.rule-value {
+    width: 240px;
+}
+
+.qb-tree-panel input.rule-value.form-check-input {
+    height: 1.925em;
+    margin-top: -0.02em;
+}
+
+.qb-tree-panel select.ruleGroup-combinators {
+    width: auto;
+}
+
+.qb-tree-panel .form-control,
+.qb-tree-panel .form-select {
+    display: inline-block;
+    max-width: 100%;
+}
