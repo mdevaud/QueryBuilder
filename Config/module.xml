@@ -18,8 +18,10 @@
     <version>2.0.0</version>
     <authors>
         <author>
-            <name>OpenStudio</name>
-            <email>dev@openstudio.fr</email>
+            <name>Samuel Diakité</name>
+            <company>OpenStudio</company>
+            <email>sdiakite@openstudio.fr</email>
+            <website>https://github.com/openstudio-sdiakite</website>
         </author>
     </authors>
     <type>classic</type>

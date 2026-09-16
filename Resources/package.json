@@ -2,6 +2,7 @@
     "name": "thelia-query-builder-module",
     "version": "2.0.0",
     "private": true,
+    "author": "Samuel Diakité – OpenStudio <sdiakite@openstudio.fr> (https://github.com/openstudio-sdiakite)",
     "description": "Back-office editor bundle of the Thelia QueryBuilder module (react-querybuilder through openstudio/query-builder-bundle, Stimulus controllers of the rule and action screens).",
     "scripts": {
         "build": "webpack --mode production",

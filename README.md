@@ -197,6 +197,10 @@ php vendor/bin/phpunit -c phpunit.xml.dist --testsuite unit
 
 `.github/workflows/ci.yml` installs a fresh `thelia/thelia-project` shop, requires the module from the checkout and runs both suites.
 
+## Author
+
+Samuel Diakité – OpenStudio ([openstudio-sdiakite](https://github.com/openstudio-sdiakite), <sdiakite@openstudio.fr>)
+
 ## License
 
 GPL-3.0-or-later, see [LICENSE](LICENSE).
