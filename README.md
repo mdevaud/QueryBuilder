@@ -177,12 +177,14 @@ php Thelia querybuilder:run product.top --customer=42 --product=123
 From the root of a shop where the module is installed:
 
 ```bash
-php vendor/bin/phpunit -c vendor/thelia/modules/QueryBuilder/phpunit.xml.dist --testsuite unit
+php -d auto_prepend_file=./bootstrap.php vendor/bin/phpunit -c vendor/thelia/modules/QueryBuilder/phpunit.xml.dist --testsuite unit
 
 php bin/test-prepare
 php Thelia module:activate QueryBuilder
-php vendor/bin/phpunit -c vendor/thelia/modules/QueryBuilder/phpunit.xml.dist --testsuite integration
+php -d auto_prepend_file=./bootstrap.php vendor/bin/phpunit -c vendor/thelia/modules/QueryBuilder/phpunit.xml.dist --testsuite integration
 ```
+
+`-d auto_prepend_file=./bootstrap.php` is what makes the kernel boot on the right paths. The PHPUnit entry script requires the Composer autoloader before it reads any configuration, and the autoloader pulls in `vendor/thelia/core/bootstrap.php`, which derives `THELIA_ROOT` from its own location under `vendor/`. The shop root `bootstrap.php` holds the real path constants and only wins by running first, which no PHPUnit bootstrap file can do. Without it the kernel looks for the core Propel schema under `vendor/thelia/vendor/thelia/config/` and the integration suite errors out; the test bootstrap detects the case and prints the command to use.
 
 The unit suite also runs from the module checkout alone, once its dev dependencies are installed (`thelia/core`, the bundle, PHPUnit):
 

@@ -146,10 +146,17 @@ jobs:
 
       - name: Unit tests
         # The module is symlinked into the shop: the bootstrap gets the shop autoloader explicitly.
+        #
+        # -d auto_prepend_file: the PHPUnit entry script requires the Composer autoloader
+        # before it reads any configuration, and the autoloader pulls in
+        # vendor/thelia/core/bootstrap.php, which derives THELIA_ROOT from its own location
+        # under vendor/. The shop root bootstrap.php holds the real path constants and only
+        # wins by being loaded first, which no PHPUnit bootstrap file can do: a prepended
+        # file is the one hook that runs before the entry script.
         working-directory: ${{ env.SHOP_DIR }}
         env:
           THELIA_VENDOR_AUTOLOAD: ${{ env.SHOP_DIR }}/vendor/autoload.php
-        run: php vendor/bin/phpunit -c "$GITHUB_WORKSPACE/module/phpunit.xml.dist" --testsuite unit
+        run: php -d auto_prepend_file=./bootstrap.php vendor/bin/phpunit -c "$GITHUB_WORKSPACE/module/phpunit.xml.dist" --testsuite unit
 
       - name: Install the shop
         working-directory: ${{ env.SHOP_DIR }}
@@ -159,7 +166,10 @@ jobs:
 
       - name: Integration tests
         working-directory: ${{ env.SHOP_DIR }}
+        # -d auto_prepend_file: see the unit step. Without it the kernel boots on a
+        # THELIA_ROOT pointing inside vendor/ and Propel looks for the core schema under
+        # vendor/thelia/vendor/thelia/config/.
         env:
           APP_ENV: test
           THELIA_VENDOR_AUTOLOAD: ${{ env.SHOP_DIR }}/vendor/autoload.php
-        run: php vendor/bin/phpunit -c "$GITHUB_WORKSPACE/module/phpunit.xml.dist" --testsuite integration
+        run: php -d auto_prepend_file=./bootstrap.php vendor/bin/phpunit -c "$GITHUB_WORKSPACE/module/phpunit.xml.dist" --testsuite integration

@@ -35,13 +35,32 @@ if ($autoload === null) {
 // The core bootstrap (autoloaded with the vendor) derives THELIA_ROOT from its own
 // location, which is vendor/thelia/ in a shop installed by Composer: the shop defines
 // the constants in its root bootstrap.php before loading the vendor, so do the same.
-$shopBootstrap = dirname($autoload, 2) . '/bootstrap.php';
+$shopRoot = dirname($autoload, 2);
+$shopBootstrap = $shopRoot . '/bootstrap.php';
 
 if (is_file($shopBootstrap)) {
     require $shopBootstrap;
 }
 
 require $autoload;
+
+// Reached only when something loaded the autoloader before this file: the PHPUnit entry
+// script does, before it reads any configuration, so the require above came too late and
+// the path constants are already the ones the core derived from vendor/. Nothing can undo
+// a define(), and the kernel would boot looking for the core schema under
+// vendor/thelia/vendor/thelia/config/: say what to run instead.
+$vendorDirectory = realpath(dirname($autoload)) . DIRECTORY_SEPARATOR;
+
+if (is_file($shopBootstrap) && defined('THELIA_ROOT') && str_starts_with((string) realpath(THELIA_ROOT), $vendorDirectory)) {
+    fwrite(\STDERR, sprintf(
+        "THELIA_ROOT is %s, inside the vendor directory, so the path constants all point below it.\n"
+        . "The Composer autoloader was loaded before the shop bootstrap.php. Prepend it to the PHPUnit entry script:\n"
+        . "  php -d auto_prepend_file=%s vendor/bin/phpunit -c <module>/phpunit.xml.dist --testsuite integration\n",
+        THELIA_ROOT,
+        $shopBootstrap,
+    ));
+    exit(1);
+}
 
 // The shop kernel reads its parameters from the environment (DEFAULT_URI, the database):
 // load the shop .env the way the shop test bootstrap does. In test mode Dotenv skips
