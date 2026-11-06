@@ -69,6 +69,8 @@ Two kinds of fields:
 - `field: table.column`: the joins from `product` to the table are added automatically from the `joins` graph. A join flagged `multivalued` (one product, several rows) compiles its comparisons to `EXISTS` or `NOT EXISTS` subqueries, so that `notIn` or `!=` exclude the whole product instead of matching another joined row.
 - `expression: <SQL>`: a self-contained SQL expression, subqueries allowed, which may reference runtime placeholders.
 
+The negative operators (`!=`, `notIn`, `doesNotContain`, `notBetween`) on a single-valued field keep the rows without a value: they compile to `(field IS NULL OR field NOT IN (...))`, because in SQL `NULL NOT IN (...)` is unknown and would silently drop the products (or the customers, through a correlated expression) whose value is missing. Add a `notNull` condition to exclude the missing values explicitly. The guarantee holds for a column of `product` or a correlated `expression`: a field reached through an INNER join whose row does not exist for every product (the brand title of a product without a brand) has left the result set before the `WHERE`. Multivalued fields compile their negations to `NOT EXISTS` and are not concerned.
+
 Runtime placeholders: `:customer_id`, `:cart_id`, `:cart_product_ids`, `:product_id` (bound to 0 outside a product page, so "is the current product = false" lets everything through), `:order_id`, `:category_id`, `:brand_id`, `:locale`, `:cart_total` (products total of the cart, taxes included) and `:delivery_country_id`, plus the ones provided by the project through `RuntimeParameterProviderInterface`. A placeholder without a value in the current visit (an anonymous visitor on a rule that needs `:customer_id`, for instance) makes the rule skip with a logged warning, and the page renders anyway.
 
 An expression may contain the `:value` token: the value entered in the editor is then expanded inside the expression, one placeholder per item, and the field must restrict its `operators` to `in` and `notIn`, which only set the polarity, or to `=` and `!=`, compiled as a one-item `in` and `notIn`. The "list of values" pick of a field with a `values_query` is stored as `=`, so such a field needs no more than `[in, notIn]` for the pick to compile.
@@ -92,7 +94,7 @@ Hook points shipped, per context (the `theme_hook()` codes of Flexy): `home.top`
 
 The module implements `Thelia\Core\Hook\Theme\ThemeHookInterface` for every hook code of the dictionary: a `theme_hook('product.top', {product: product})` call in the theme runs the rules bound to `product.top` for the current visit and renders one product list per display action. The theme passes the resource it displays (product, category, brand); its id feeds the runtime context.
 
-The product list is rendered with `templates/frontOffice/default/QueryBuilder/product-list.html.twig`, which relies on the Flexy component `Layouts:CrossSelling:Base` (products fetched by the theme, picked order kept). A theme overrides it by shipping `templates/frontOffice/<theme>/modules/QueryBuilder/product-list.html.twig`; the variables are `hook`, `rule_name`, `action_name` and `product_ids`.
+The product list is rendered with `templates/frontOffice/default/QueryBuilder/product-list.html.twig`, which relies on the Flexy component `Layouts:CrossSelling:Base` (products fetched by the theme, picked order kept). A theme overrides it by shipping `templates/frontOffice/<theme>/modules/QueryBuilder/product-list.html.twig`; the variables are `hook`, `rule_name`, `action_name`, `action_description` (the description of the action, `null` when empty, a free label for the front) and `product_ids`.
 
 The cart discount granted by a rule is shown on the checkout pages by `cart-discount.html.twig` (same override path), once per request, on the `checkout.top` and `cart.bottom` points.
 
@@ -116,7 +118,7 @@ Optional parameters: `product_id`, `order_id`, `category_id`, `brand_id`. On err
 | `hookCode` | The hook code |
 | `productIds` | Unique product ids selected by the display actions, in selection order |
 | `offers` | Discount offers keyed by product id (`rate`, `label`, `cumulative`) |
-| `actions` | One entry per executed display action (`rule`, `action`, `product_ids`, `offers`) |
+| `actions` | One entry per executed display action (`rule`, `action`, `description`, `product_ids`, `offers`) |
 | `products` | The selected products as front `Product` resources, in the same order |
 
 Query parameters: `product_id`, `category_id`, `brand_id`, `order_id`. A hook code the dictionary does not declare answers 404. Several rules bound to the same hook share one slot, capped by the highest action limit.
@@ -139,7 +141,7 @@ The discount is served through the catalog price contract of the core, introduce
 
 A non-stackable rule (default) replaces the promotion the visitor would otherwise see, catalog promotion or catalog price rule of the core, only when it is better; a stackable rule applies on top of it. The core asks nothing of the price resolvers while no rule runs: the module also decorates `Thelia\Domain\Pricing\PricingActivityChecker` to declare a running discount rule as a public, visitor-dependent pricing, which makes the core ask and takes the shared API cache of the front product collections out of the way while one runs. The price orders and `min_price` / `max_price` filters of the product loop read the stored prices of the core rules only: they do not see the module discounts, as they do not see the core prices reserved to named customers.
 
-The tree of a discount action is evaluated on every surface, cart events included. Conditions that describe a recommendation ("product in the cart = false") cancel the discount as soon as the product enters the cart: keep the tree of a discount on stable criteria (brand, category, visibility).
+The tree of a discount action is evaluated on every surface, cart events included. Conditions that describe a recommendation ("product in the cart = false") cancel the discount as soon as the product enters the cart: keep the tree of a discount on stable criteria (brand, category, visibility). "Product bought by the customer in the last 3 months" counts the completed orders only (status neither not paid nor canceled): the order being created, still unpaid, does not cancel the discount.
 
 The rules are evaluated without a current product on every surface (the core asks for a batch of sale elements, not for a page): a discount rule whose conditions name the context product (`PRODUCT` context) does not price the catalog. The `QueryBuilderProductOffer` addon still exposes the rate and label on the front product resource for a decoupled front. The label is displayed in the cart discount fragment of the checkout pages (see Front).
 

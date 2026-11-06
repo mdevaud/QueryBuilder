@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace QueryBuilder\Tests\Unit\Service;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use QueryBuilder\Dictionary\FieldDefinition;
@@ -77,6 +78,58 @@ final class SqlBuilderTest extends TestCase
         self::assertStringContainsString('WHERE `product_category`.`product_id` = `product`.`id` AND `category_i18n`.`title` IN (:qb_0))', $compiled->sql);
         self::assertStringNotContainsString("\nINNER JOIN `product_category`", $compiled->sql, 'a multivalued join must not be added to the main FROM');
         self::assertSame('Shoes', $compiled->parameters['qb_0']);
+    }
+
+    /** @return iterable<string, array{string, mixed, string}> */
+    public static function negativeOperators(): iterable
+    {
+        yield 'different' => ['!=', 3, '`product`.`brand_id` <> :qb_0'];
+        yield 'not in' => ['notIn', [3, 4], '`product`.`brand_id` NOT IN (:qb_0, :qb_1)'];
+        yield 'not between' => ['notBetween', [3, 4], '`product`.`brand_id` NOT BETWEEN :qb_0 AND :qb_1'];
+    }
+
+    #[Test]
+    #[DataProvider('negativeOperators')]
+    public function aNegativeOperatorKeepsTheRowsWithoutAValue(string $operator, mixed $value, string $comparison): void
+    {
+        $compiled = $this->builder()->compile(self::rule('product_brand_id', $operator, $value), new RuntimeContext());
+
+        self::assertStringContainsString('(`product`.`brand_id` IS NULL OR ' . $comparison . ')', $compiled->sql);
+    }
+
+    #[Test]
+    public function doesNotContainKeepsTheRowsWithoutAValue(): void
+    {
+        $compiled = $this->builder()->compile(self::rule('product_ref', 'doesNotContain', 'ABC'), new RuntimeContext());
+
+        self::assertStringContainsString('(`product`.`ref` IS NULL OR `product`.`ref` NOT LIKE :qb_0)', $compiled->sql);
+    }
+
+    #[Test]
+    public function aPositiveOperatorDoesNotKeepTheRowsWithoutAValue(): void
+    {
+        foreach (['=' => 3, 'in' => [3], 'between' => [3, 4]] as $operator => $value) {
+            $compiled = $this->builder()->compile(self::rule('product_brand_id', $operator, $value), new RuntimeContext());
+
+            self::assertStringNotContainsString('IS NULL', $compiled->sql, $operator);
+        }
+    }
+
+    #[Test]
+    public function aNegativeOperatorOnAMultivaluedJoinStaysANotExists(): void
+    {
+        $compiled = $this->builder()->compile(self::rule('product_category_title', '!=', 'Shoes'), new RuntimeContext());
+
+        self::assertStringContainsString('NOT EXISTS (SELECT 1 FROM `product_category`', $compiled->sql);
+        self::assertStringNotContainsString('IS NULL', $compiled->sql);
+    }
+
+    #[Test]
+    public function aProductBoughtInTheLastThreeMonthsCountsTheCompletedOrdersOnly(): void
+    {
+        $compiled = $this->builder()->compile(self::rule('customer_purchased_last_3_months', '=', true), new RuntimeContext(customerId: 7));
+
+        self::assertStringContainsString("qb_ords.code NOT IN ('not_paid', 'canceled')", $compiled->sql);
     }
 
     #[Test]

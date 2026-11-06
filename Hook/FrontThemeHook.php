@@ -57,6 +57,7 @@ final readonly class FrontThemeHook implements ThemeHookInterface
                 'hook' => $hookName,
                 'rule_name' => (string) $action['rule'],
                 'action_name' => (string) $action['action'],
+                'action_description' => $action['description'],
                 'product_ids' => array_values(array_map('intval', $action['product_ids'])),
             ]);
         }

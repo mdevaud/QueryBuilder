@@ -59,7 +59,7 @@ class QueryBuilderProducts
     #[Groups([self::GROUP_FRONT_READ])]
     public array $offers = [];
 
-    /** @var array<int, array{rule: ?string, action: ?string, product_ids: int[], offers: array}> one entry per executed display action */
+    /** @var array<int, array{rule: ?string, action: ?string, description: ?string, product_ids: int[], offers: array}> one entry per executed display action */
     #[Groups([self::GROUP_FRONT_READ])]
     public array $actions = [];
 
