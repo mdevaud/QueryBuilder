@@ -4,7 +4,7 @@ All notable changes to this module are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.2.0] 2026-11-06
 
 Fixes of the 1.x line (1.4.0 to 1.6.1) carried over to 2.x.
 
