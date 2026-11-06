@@ -4,6 +4,17 @@ All notable changes to this module are documented here.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the module adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Fixes of the 1.x line (1.4.0 to 1.6.1) carried over to 2.x.
+
+### Added
+- Each display action of the hook payload carries its `description` (`null` when empty), a free label for the front: in the `actions` of the API resource and of `query_builder_products()`, and as `action_description` in the `product-list.html.twig` template.
+
+### Fixed
+- The negative operators (`!=`, `notIn`, `doesNotContain`, `notBetween`) on a single-valued field keep the rows without a value: they compile to `(field IS NULL OR ...)`. "Brand different from X" no longer drops the products without a brand, and "days since the last order different from 10" now matches a customer without any order.
+- "Product bought by the customer in the last 3 months" counts the completed orders only (status neither `not_paid` nor `canceled`): a canceled order no longer counts as a purchase, and the order being created no longer cancels a discount.
+
 ## [2.1.1] 2026-10-05
 
 ### Fixed
